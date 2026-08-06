@@ -231,11 +231,13 @@ button {
   transition: transform 0.2s ease;
 }
 
-.toggle-row input:checked + .switch {
+.toggle-row input:checked + .switch,
+.extra-kniffel-toggle input:checked + .switch {
   background: var(--accent);
 }
 
-.toggle-row input:checked + .switch::after {
+.toggle-row input:checked + .switch::after,
+.extra-kniffel-toggle input:checked + .switch::after {
   transform: translateX(20px);
 }
 
@@ -529,58 +531,75 @@ button {
   min-width: 220px;
 }
 
-/* Manual dice entry */
+/* Manual score entry */
 
-.manual-dice-row {
-  align-items: flex-start;
-  gap: 14px;
+.extra-kniffel-toggle {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--card-bg);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  padding: 12px 16px;
+  cursor: pointer;
 }
 
-.manual-die-wrap {
+.extra-kniffel-toggle input[type="checkbox"] {
+  position: absolute;
+  opacity: 0;
+  width: 46px;
+  height: 26px;
+  margin: 0;
+  cursor: pointer;
+}
+
+.extra-kniffel-text {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.score-cell.manual {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
+  gap: 5px;
+  padding: 8px 6px;
 }
 
-.die-editable {
-  cursor: pointer;
-}
-
-.die-editable:hover {
-  box-shadow: 0 0 0 3px var(--gold), var(--shadow-lg);
-}
-
-.die-editable:active {
-  transform: scale(0.96);
-}
-
-.hold-toggle-btn {
-  border: none;
-  border-radius: 999px;
-  width: 64px;
-  padding: 5px 4px;
-  font-size: 10px;
-  font-weight: 700;
-  background: var(--card-bg-soft);
-  color: var(--text-muted);
-  cursor: pointer;
-  white-space: nowrap;
+.manual-input {
+  width: 52px;
   text-align: center;
-}
-
-.hold-toggle-btn:hover {
-  background: var(--accent-soft);
+  border: 2px solid var(--accent-soft);
+  border-radius: 8px;
+  padding: 5px 2px;
+  font-weight: 800;
+  font-size: 14px;
   color: var(--accent-dark);
+  background: var(--card-bg);
+  -moz-appearance: textfield;
 }
 
-.hold-toggle-active {
-  background: var(--accent);
-  color: white;
+.manual-input:focus {
+  outline: none;
+  border-color: var(--accent);
 }
 
-.hold-toggle-active:hover {
-  background: var(--accent-dark);
+.manual-btn-row {
+  display: flex;
+  gap: 4px;
+}
+
+.manual-confirm-btn {
+  background: var(--success-soft);
+  color: var(--success);
+  min-width: 0;
+  padding: 6px 9px;
+}
+
+.manual-confirm-btn:hover {
+  background: var(--success);
   color: white;
 }
 
@@ -747,16 +766,6 @@ button {
     width: 54px;
     height: 54px;
     border-radius: 13px;
-  }
-
-  .manual-dice-row {
-    gap: 8px;
-  }
-
-  .hold-toggle-btn {
-    width: 54px;
-    font-size: 9px;
-    padding: 4px 2px;
   }
 
   .player-banner {

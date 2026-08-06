@@ -14,13 +14,7 @@ export function PlayerBanner({ player, rollsUsed, manualDiceMode, onNewGame }: P
 
   let hint: string;
   if (manualDiceMode) {
-    if (rollsUsed === 0) {
-      hint = "Würfel werfen und Zahlen eintippen";
-    } else if (rollsLeft > 0) {
-      hint = "Würfel halten oder neue Zahlen eintragen, oder Feld wählen";
-    } else {
-      hint = "Letzter Wurf – jetzt ein Feld wählen";
-    }
+    hint = "Mit echten Würfeln werfen, dann unten eine Kategorie wählen und Ergebnis eintragen";
   } else if (rollsUsed === 0) {
     hint = "Würfeln zum Start des Zuges";
   } else if (rollsLeft > 0) {

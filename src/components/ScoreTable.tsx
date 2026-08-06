@@ -1,4 +1,5 @@
-import { computeScore } from "../game/scoring";
+import { useState } from "react";
+import { computeScore, maxScoreForCategory } from "../game/scoring";
 import {
   hasUpperBonus,
   kniffelBonusTotal,
@@ -24,7 +25,66 @@ interface ScoreTableProps {
   dice: number[];
   rollsUsed: number;
   extendedMode: boolean;
+  manualDiceMode: boolean;
   onFill: (category: Category, crossOut: boolean) => void;
+  onManualFill: (category: Category, value: number, crossOut: boolean) => void;
+}
+
+function ManualScoreCell({
+  category,
+  onSubmit,
+  onCrossOut,
+}: {
+  category: Category;
+  onSubmit: (value: number) => void;
+  onCrossOut: () => void;
+}) {
+  const [value, setValue] = useState("");
+  const max = maxScoreForCategory(category);
+
+  const submit = () => {
+    onSubmit(value === "" ? 0 : Number(value));
+    setValue("");
+  };
+
+  return (
+    <td className="score-cell actionable manual">
+      <input
+        type="number"
+        inputMode="numeric"
+        className="manual-input"
+        min={0}
+        max={max}
+        placeholder="0"
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") submit();
+        }}
+        aria-label={`${CATEGORY_LABELS[category]} Ergebnis eingeben`}
+      />
+      <div className="manual-btn-row">
+        <button
+          type="button"
+          className="score-btn manual-confirm-btn"
+          onClick={submit}
+          aria-label={`${CATEGORY_LABELS[category]} eintragen`}
+          title="Eintragen"
+        >
+          ✓
+        </button>
+        <button
+          type="button"
+          className="cross-btn"
+          onClick={onCrossOut}
+          aria-label={`${CATEGORY_LABELS[category]} streichen`}
+          title="Feld streichen"
+        >
+          ✕
+        </button>
+      </div>
+    </td>
+  );
 }
 
 function CategoryRow({
@@ -33,16 +93,20 @@ function CategoryRow({
   currentPlayerIndex,
   dice,
   rollsUsed,
+  manualDiceMode,
   onFill,
+  onManualFill,
 }: {
   category: Category;
   players: Player[];
   currentPlayerIndex: number;
   dice: number[];
   rollsUsed: number;
+  manualDiceMode: boolean;
   onFill: (category: Category, crossOut: boolean) => void;
+  onManualFill: (category: Category, value: number, crossOut: boolean) => void;
 }) {
-  const canAct = rollsUsed > 0;
+  const canAct = manualDiceMode || rollsUsed > 0;
   return (
     <tr>
       <th scope="row" className="cat-cell" title={CATEGORY_HINTS[category]}>
@@ -68,6 +132,16 @@ function CategoryRow({
           );
         }
         if (isCurrent && canAct) {
+          if (manualDiceMode) {
+            return (
+              <ManualScoreCell
+                key={player.id}
+                category={category}
+                onSubmit={(value) => onManualFill(category, value, false)}
+                onCrossOut={() => onManualFill(category, 0, true)}
+              />
+            );
+          }
           const preview = computeScore(category, dice);
           return (
             <td key={player.id} className="score-cell actionable">
@@ -106,8 +180,19 @@ export function ScoreTable({
   dice,
   rollsUsed,
   extendedMode,
+  manualDiceMode,
   onFill,
+  onManualFill,
 }: ScoreTableProps) {
+  const rowProps = {
+    players,
+    currentPlayerIndex,
+    dice,
+    rollsUsed,
+    manualDiceMode,
+    onFill,
+    onManualFill,
+  };
   return (
     <div className="score-table-wrap">
       <table className="score-table">
@@ -132,15 +217,7 @@ export function ScoreTable({
             <td colSpan={players.length + 1}>Oben</td>
           </tr>
           {UPPER_CATEGORIES.map((c) => (
-            <CategoryRow
-              key={c}
-              category={c}
-              players={players}
-              currentPlayerIndex={currentPlayerIndex}
-              dice={dice}
-              rollsUsed={rollsUsed}
-              onFill={onFill}
-            />
+            <CategoryRow key={c} category={c} {...rowProps} />
           ))}
           <tr className="subtotal-row">
             <th scope="row" className="cat-cell">
@@ -169,15 +246,7 @@ export function ScoreTable({
             <td colSpan={players.length + 1}>Unten</td>
           </tr>
           {LOWER_CATEGORIES.map((c) => (
-            <CategoryRow
-              key={c}
-              category={c}
-              players={players}
-              currentPlayerIndex={currentPlayerIndex}
-              dice={dice}
-              rollsUsed={rollsUsed}
-              onFill={onFill}
-            />
+            <CategoryRow key={c} category={c} {...rowProps} />
           ))}
 
           {extendedMode && (
@@ -186,15 +255,7 @@ export function ScoreTable({
                 <td colSpan={players.length + 1}>Erweitert</td>
               </tr>
               {EXTENDED_CATEGORIES.map((c) => (
-                <CategoryRow
-                  key={c}
-                  category={c}
-                  players={players}
-                  currentPlayerIndex={currentPlayerIndex}
-                  dice={dice}
-                  rollsUsed={rollsUsed}
-                  onFill={onFill}
-                />
+                <CategoryRow key={c} category={c} {...rowProps} />
               ))}
             </>
           )}

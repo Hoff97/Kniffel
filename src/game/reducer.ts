@@ -1,4 +1,4 @@
-import { computeScore, isKniffel, rollDie } from "./scoring";
+import { clampScore, computeScore, isKniffel, maxScoreForCategory, rollDie } from "./scoring";
 import { isGameFinished } from "./stats";
 import {
   DICE_COUNT,
@@ -12,9 +12,9 @@ import {
 export type GameAction =
   | { type: "START_GAME"; names: string[]; extendedMode: boolean; manualDiceMode: boolean }
   | { type: "ROLL" }
-  | { type: "SET_DICE"; values: number[] }
   | { type: "TOGGLE_HOLD"; index: number }
   | { type: "FILL_CATEGORY"; category: Category; crossOut: boolean }
+  | { type: "MANUAL_SUBMIT"; category: Category; value: number; crossOut: boolean; extraKniffel: boolean }
   | { type: "NEW_GAME" }
   | { type: "DISMISS_KNIFFEL_BONUS" };
 
@@ -30,12 +30,35 @@ export const initialState: GameState = {
   lastKniffelBonus: false,
 };
 
-function clampDie(value: number): number {
-  return Math.min(6, Math.max(1, Math.round(value)));
-}
-
 function makePlayer(name: string, id: string): Player {
   return { id, name, scores: {}, crossedOut: {}, kniffelBonusCount: 0 };
+}
+
+function isCategoryFilled(player: Player, category: Category): boolean {
+  return player.scores[category] !== undefined || !!player.crossedOut[category];
+}
+
+function applyTurnResult(
+  state: GameState,
+  players: Player[],
+  grantsBonus: boolean,
+): GameState {
+  const finished = isGameFinished(players, state.extendedMode);
+  const staySamePlayer = grantsBonus && !finished;
+  const nextIndex = staySamePlayer
+    ? state.currentPlayerIndex
+    : (state.currentPlayerIndex + 1) % state.players.length;
+
+  return {
+    ...state,
+    players,
+    phase: finished ? "finished" : "playing",
+    currentPlayerIndex: nextIndex,
+    dice: [1, 1, 1, 1, 1],
+    held: new Array(DICE_COUNT).fill(false),
+    rollsUsed: 0,
+    lastKniffelBonus: grantsBonus,
+  };
 }
 
 export function gameReducer(state: GameState, action: GameAction): GameState {
@@ -58,21 +81,15 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
 
     case "ROLL": {
       if (state.phase !== "playing") return state;
+      if (state.manualDiceMode) return state;
       if (state.rollsUsed >= MAX_ROLLS) return state;
       const dice = state.dice.map((d, i) => (state.held[i] ? d : rollDie()));
       return { ...state, dice, rollsUsed: state.rollsUsed + 1, lastKniffelBonus: false };
     }
 
-    case "SET_DICE": {
-      if (state.phase !== "playing") return state;
-      if (state.rollsUsed >= MAX_ROLLS) return state;
-      if (action.values.length !== DICE_COUNT) return state;
-      const dice = state.dice.map((d, i) => (state.held[i] ? d : clampDie(action.values[i])));
-      return { ...state, dice, rollsUsed: state.rollsUsed + 1, lastKniffelBonus: false };
-    }
-
     case "TOGGLE_HOLD": {
       if (state.phase !== "playing") return state;
+      if (state.manualDiceMode) return state;
       if (state.rollsUsed === 0 || state.rollsUsed >= MAX_ROLLS) return state;
       const held = state.held.slice();
       held[action.index] = !held[action.index];
@@ -81,12 +98,11 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
 
     case "FILL_CATEGORY": {
       if (state.phase !== "playing") return state;
+      if (state.manualDiceMode) return state;
       if (state.rollsUsed === 0) return state;
 
       const player = state.players[state.currentPlayerIndex];
-      const alreadyFilled =
-        player.scores[action.category] !== undefined || player.crossedOut[action.category];
-      if (alreadyFilled) return state;
+      if (isCategoryFilled(player, action.category)) return state;
 
       const rolledKniffel = isKniffel(state.dice);
       const hadKniffelBefore = player.scores.kniffel === KNIFFEL_FIRST_SCORE;
@@ -111,23 +127,40 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       const players = state.players.slice();
       players[state.currentPlayerIndex] = updatedPlayer;
 
-      const finished = isGameFinished(players, state.extendedMode);
+      return applyTurnResult(state, players, grantsBonus);
+    }
 
-      const staySamePlayer = grantsBonus && !finished;
-      const nextIndex = staySamePlayer
-        ? state.currentPlayerIndex
-        : (state.currentPlayerIndex + 1) % state.players.length;
+    case "MANUAL_SUBMIT": {
+      if (state.phase !== "playing") return state;
+      if (!state.manualDiceMode) return state;
 
-      return {
-        ...state,
-        players,
-        phase: finished ? "finished" : "playing",
-        currentPlayerIndex: nextIndex,
-        dice: [1, 1, 1, 1, 1],
-        held: new Array(DICE_COUNT).fill(false),
-        rollsUsed: 0,
-        lastKniffelBonus: grantsBonus,
+      const player = state.players[state.currentPlayerIndex];
+      if (isCategoryFilled(player, action.category)) return state;
+
+      const hadKniffelBefore = player.scores.kniffel === KNIFFEL_FIRST_SCORE;
+      const grantsBonus = action.extraKniffel && hadKniffelBefore;
+
+      const updatedPlayer: Player = {
+        ...player,
+        scores: { ...player.scores },
+        crossedOut: { ...player.crossedOut },
       };
+
+      if (action.crossOut) {
+        updatedPlayer.crossedOut[action.category] = true;
+      } else {
+        const max = maxScoreForCategory(action.category);
+        updatedPlayer.scores[action.category] = clampScore(action.value, max);
+      }
+
+      if (grantsBonus) {
+        updatedPlayer.kniffelBonusCount += 1;
+      }
+
+      const players = state.players.slice();
+      players[state.currentPlayerIndex] = updatedPlayer;
+
+      return applyTurnResult(state, players, grantsBonus);
     }
 
     case "DISMISS_KNIFFEL_BONUS":

@@ -1,13 +1,12 @@
 import { useEffect, useReducer, useState } from "react";
 import { Dice } from "./components/Dice";
 import { GameOver } from "./components/GameOver";
-import { ManualDice } from "./components/ManualDice";
 import { PlayerBanner } from "./components/PlayerBanner";
 import { ScoreTable } from "./components/ScoreTable";
 import { Setup } from "./components/Setup";
 import { gameReducer, initialState } from "./game/reducer";
 import { loadState, saveState, clearState } from "./game/storage";
-import { MAX_ROLLS, type Category } from "./game/types";
+import { KNIFFEL_FIRST_SCORE, MAX_ROLLS, type Category } from "./game/types";
 
 function init() {
   return loadState() ?? initialState;
@@ -16,7 +15,7 @@ function init() {
 export default function App() {
   const [state, dispatch] = useReducer(gameReducer, undefined, init);
   const [rolling, setRolling] = useState(false);
-  const [pendingDice, setPendingDice] = useState<number[]>(state.dice);
+  const [extraKniffelFlag, setExtraKniffelFlag] = useState(false);
 
   useEffect(() => {
     if (state.phase === "setup") {
@@ -27,8 +26,8 @@ export default function App() {
   }, [state]);
 
   useEffect(() => {
-    setPendingDice(state.dice);
-  }, [state.dice]);
+    setExtraKniffelFlag(false);
+  }, [state.currentPlayerIndex, state.phase]);
 
   const handleRoll = () => {
     setRolling(true);
@@ -36,17 +35,13 @@ export default function App() {
     window.setTimeout(() => setRolling(false), 350);
   };
 
-  const handleCyclePendingDie = (index: number) => {
-    if (state.held[index]) return;
-    setPendingDice((prev) => prev.map((v, i) => (i === index ? (v % 6) + 1 : v)));
-  };
-
-  const handleSubmitManualRoll = () => {
-    dispatch({ type: "SET_DICE", values: pendingDice });
-  };
-
   const handleFill = (category: Category, crossOut: boolean) => {
     dispatch({ type: "FILL_CATEGORY", category, crossOut });
+  };
+
+  const handleManualFill = (category: Category, value: number, crossOut: boolean) => {
+    dispatch({ type: "MANUAL_SUBMIT", category, value, crossOut, extraKniffel: extraKniffelFlag });
+    setExtraKniffelFlag(false);
   };
 
   const handleNewGame = () => {
@@ -70,6 +65,7 @@ export default function App() {
   const currentPlayer = state.players[state.currentPlayerIndex];
   const canHold = state.rollsUsed > 0 && state.rollsUsed < MAX_ROLLS;
   const rollsLeft = MAX_ROLLS - state.rollsUsed;
+  const canFlagExtraKniffel = currentPlayer.scores.kniffel === KNIFFEL_FIRST_SCORE;
 
   return (
     <div className="app-shell">
@@ -91,26 +87,19 @@ export default function App() {
       />
 
       {state.manualDiceMode ? (
-        <>
-          <ManualDice
-            dice={pendingDice}
-            held={state.held}
-            canEditValues={rollsLeft > 0}
-            canToggleHold={canHold}
-            onCycle={handleCyclePendingDie}
-            onToggleHold={(i) => dispatch({ type: "TOGGLE_HOLD", index: i })}
-          />
-          <div className="roll-controls">
-            <button
-              type="button"
-              className="primary-btn roll-btn"
-              onClick={handleSubmitManualRoll}
-              disabled={rollsLeft <= 0}
-            >
-              ✅ Wurf eintragen ({rollsLeft} übrig)
-            </button>
-          </div>
-        </>
+        canFlagExtraKniffel && (
+          <label className="extra-kniffel-toggle">
+            <input
+              type="checkbox"
+              checked={extraKniffelFlag}
+              onChange={(e) => setExtraKniffelFlag(e.target.checked)}
+            />
+            <span className="switch" />
+            <span className="extra-kniffel-text">
+              Zusätzlicher Kniffel in dieser Runde? (+100 Punkte &amp; Extra-Runde)
+            </span>
+          </label>
+        )
       ) : (
         <>
           <Dice
@@ -139,7 +128,9 @@ export default function App() {
         dice={state.dice}
         rollsUsed={state.rollsUsed}
         extendedMode={state.extendedMode}
+        manualDiceMode={state.manualDiceMode}
         onFill={handleFill}
+        onManualFill={handleManualFill}
       />
     </div>
   );

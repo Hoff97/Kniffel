@@ -104,3 +104,31 @@ export function computeScore(category: Category, dice: number[]): number {
 export function rollDie(): number {
   return 1 + Math.floor(Math.random() * 6);
 }
+
+const CATEGORY_MAX: Record<Category, number> = {
+  ones: 5,
+  twos: 10,
+  threes: 15,
+  fours: 20,
+  fives: 25,
+  sixes: 30,
+  threeOfKind: 30,
+  fourOfKind: 30,
+  fullHouse: 25,
+  smallStraight: 30,
+  largeStraight: 40,
+  chance: 30,
+  kniffel: 50,
+  highRoller: 30,
+  twoPairs: 25,
+  chaos: 30,
+};
+
+export function maxScoreForCategory(category: Category): number {
+  return CATEGORY_MAX[category];
+}
+
+export function clampScore(value: number, max: number): number {
+  if (Number.isNaN(value)) return 0;
+  return Math.min(max, Math.max(0, Math.round(value)));
+}
