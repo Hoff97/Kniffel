@@ -14,6 +14,7 @@ import {
   savePausedGame,
   type PausedGame,
 } from "./game/storage";
+import { getTurnAvailability } from "./game/turnRules";
 import { MAX_ROLLS, type Category } from "./game/types";
 
 function init() {
@@ -114,7 +115,16 @@ export default function App() {
   if (state.phase === "setup") {
     return (
       <Setup
-        onStart={(names, extendedMode, manualDiceMode, timeAttackMode, timeAttackSeconds) =>
+        onStart={(
+          names,
+          extendedMode,
+          manualDiceMode,
+          timeAttackMode,
+          timeAttackSeconds,
+          categoryOrderMode,
+          blindKniffelMode,
+          jokerRuleMode,
+        ) =>
           dispatch({
             type: "START_GAME",
             names,
@@ -122,6 +132,9 @@ export default function App() {
             manualDiceMode,
             timeAttackMode,
             timeAttackSeconds,
+            categoryOrderMode,
+            blindKniffelMode,
+            jokerRuleMode,
           })
         }
         onResume={handleResume}
@@ -142,6 +155,15 @@ export default function App() {
     ? timeGateOpen && (!state.timeAttackMode || roundEndedManually)
     : timeGateOpen && state.rollsUsed > 0;
 
+  const turnAvailability = getTurnAvailability(
+    currentPlayer,
+    state.dice,
+    state.extendedMode,
+    state.manualDiceMode,
+    state.categoryOrderMode,
+    state.jokerRuleMode,
+  );
+
   return (
     <div className="app-shell">
       <header className="app-header">
@@ -151,6 +173,12 @@ export default function App() {
       {state.lastKniffelBonus && (
         <div className="kniffel-toast" role="status">
           🎉 Zusätzlicher Kniffel! {currentPlayer.name} bekommt +100 Punkte und eine weitere Runde.
+        </div>
+      )}
+
+      {turnAvailability.jokerActive && (
+        <div className="joker-toast" role="status">
+          🃏 Joker! Dieser Kniffel muss in ein markiertes Feld eingetragen werden.
         </div>
       )}
 
@@ -204,8 +232,12 @@ export default function App() {
         currentPlayerIndex={state.currentPlayerIndex}
         dice={state.dice}
         canScore={canScore}
+        rollsUsed={state.rollsUsed}
         extendedMode={state.extendedMode}
         manualDiceMode={state.manualDiceMode}
+        blindKniffelMode={state.blindKniffelMode}
+        reachableCategories={turnAvailability.reachable}
+        jokerActive={turnAvailability.jokerActive}
         extraKniffelFlag={extraKniffelFlag}
         onToggleExtraKniffel={setExtraKniffelFlag}
         onFill={handleFill}

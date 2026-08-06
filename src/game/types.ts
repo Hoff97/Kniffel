@@ -55,6 +55,26 @@ export const DEFAULT_TIME_ATTACK_SECONDS = 60;
 export const MIN_TIME_ATTACK_SECONDS = 5;
 export const MAX_TIME_ATTACK_SECONDS = 600;
 
+export type CategoryOrderMode = "free" | "increasing" | "decreasing" | "topFirst" | "bottomFirst";
+
+export const CATEGORY_ORDER_LABELS: Record<CategoryOrderMode, string> = {
+  free: "Frei wählbar",
+  increasing: "Aufsteigend (der Reihe nach von oben)",
+  decreasing: "Absteigend (der Reihe nach von unten)",
+  topFirst: "Oben zuerst",
+  bottomFirst: "Unten zuerst",
+};
+
+// Categories that, in Blind-Kniffel mode, may only be scored on the first roll of a turn.
+export const BLIND_CATEGORIES: Category[] = [
+  "kniffel",
+  "fullHouse",
+  "smallStraight",
+  "largeStraight",
+  "twoPairs",
+  "chaos",
+];
+
 export interface Player {
   id: string;
   name: string;
@@ -71,6 +91,9 @@ export interface GameState {
   manualDiceMode: boolean;
   timeAttackMode: boolean;
   timeAttackSeconds: number;
+  categoryOrderMode: CategoryOrderMode;
+  blindKniffelMode: boolean;
+  jokerRuleMode: boolean;
   turnNumber: number;
   players: Player[];
   currentPlayerIndex: number;

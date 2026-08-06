@@ -13,6 +13,7 @@ import {
   upperBonus,
   upperSum,
 } from "../game/stats";
+import { canScoreBlindCategory, getJokerScore } from "../game/turnRules";
 import {
   CATEGORY_HINTS,
   CATEGORY_LABELS,
@@ -33,8 +34,12 @@ interface ScoreTableProps {
   currentPlayerIndex: number;
   dice: number[];
   canScore: boolean;
+  rollsUsed: number;
   extendedMode: boolean;
   manualDiceMode: boolean;
+  blindKniffelMode: boolean;
+  reachableCategories: Category[];
+  jokerActive: boolean;
   extraKniffelFlag: boolean;
   onToggleExtraKniffel: (value: boolean) => void;
   onFill: (category: Category, crossOut: boolean) => void;
@@ -157,7 +162,11 @@ function CategoryRow({
   currentPlayerIndex,
   dice,
   canScore,
+  rollsUsed,
   manualDiceMode,
+  blindKniffelMode,
+  reachableCategories,
+  jokerActive,
   extraKniffelFlag,
   onToggleExtraKniffel,
   onFill,
@@ -169,7 +178,11 @@ function CategoryRow({
   currentPlayerIndex: number;
   dice: number[];
   canScore: boolean;
+  rollsUsed: number;
   manualDiceMode: boolean;
+  blindKniffelMode: boolean;
+  reachableCategories: Category[];
+  jokerActive: boolean;
   extraKniffelFlag: boolean;
   onToggleExtraKniffel: (value: boolean) => void;
   onFill: (category: Category, crossOut: boolean) => void;
@@ -180,6 +193,11 @@ function CategoryRow({
     <tr>
       <th scope="row" className="cat-cell" title={CATEGORY_HINTS[category]}>
         {CATEGORY_LABELS[category]}
+        {jokerActive && reachableCategories.includes(category) && (
+          <span className="joker-marker" title="Joker-Feld">
+            🃏
+          </span>
+        )}
       </th>
       {players.map((player, i) => {
         const isCurrent = i === currentPlayerIndex;
@@ -215,7 +233,34 @@ function CategoryRow({
             </td>
           );
         }
-        if (isCurrent && canScore) {
+
+        const reachable = reachableCategories.includes(category);
+
+        if (isCurrent && canScore && reachable) {
+          const blindLocked =
+            !jokerActive && !canScoreBlindCategory(category, rollsUsed, manualDiceMode, blindKniffelMode);
+
+          if (blindLocked) {
+            return (
+              <td key={player.id} className="score-cell actionable blind-locked">
+                <span className="blind-lock-hint" title="Zählt nur beim ersten Wurf">
+                  🔒 1. Wurf
+                </span>
+                <button
+                  type="button"
+                  className="cross-btn"
+                  onClick={() =>
+                    manualDiceMode ? onManualFill(category, 0, true) : onFill(category, true)
+                  }
+                  aria-label={`${CATEGORY_LABELS[category]} streichen`}
+                  title="Feld streichen"
+                >
+                  ✕
+                </button>
+              </td>
+            );
+          }
+
           if (manualDiceMode) {
             const fixedValue = fixedScoreForCategory(category);
             return (
@@ -245,7 +290,7 @@ function CategoryRow({
               </td>
             );
           }
-          const preview = computeScore(category, dice);
+          const preview = jokerActive ? getJokerScore(category, dice) : computeScore(category, dice);
           return (
             <td key={player.id} className="score-cell actionable">
               <button
@@ -267,6 +312,20 @@ function CategoryRow({
             </td>
           );
         }
+
+        if (isCurrent && canScore && !reachable) {
+          return (
+            <td
+              key={player.id}
+              className="score-cell locked"
+              title="Gerade nicht wählbar"
+              aria-label="Gerade nicht wählbar"
+            >
+              🔒
+            </td>
+          );
+        }
+
         return (
           <td key={player.id} className="score-cell empty">
             –
@@ -282,8 +341,12 @@ export function ScoreTable({
   currentPlayerIndex,
   dice,
   canScore,
+  rollsUsed,
   extendedMode,
   manualDiceMode,
+  blindKniffelMode,
+  reachableCategories,
+  jokerActive,
   extraKniffelFlag,
   onToggleExtraKniffel,
   onFill,
@@ -305,7 +368,11 @@ export function ScoreTable({
     currentPlayerIndex,
     dice,
     canScore,
+    rollsUsed,
     manualDiceMode,
+    blindKniffelMode,
+    reachableCategories,
+    jokerActive,
     extraKniffelFlag,
     onToggleExtraKniffel,
     onFill,

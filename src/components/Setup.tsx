@@ -2,10 +2,20 @@ import { useEffect, useState } from "react";
 import { listPausedGames, removePausedGame, type PausedGame } from "../game/storage";
 import { grandTotal } from "../game/stats";
 import {
+  CATEGORY_ORDER_LABELS,
   DEFAULT_TIME_ATTACK_SECONDS,
   MAX_TIME_ATTACK_SECONDS,
   MIN_TIME_ATTACK_SECONDS,
+  type CategoryOrderMode,
 } from "../game/types";
+
+const CATEGORY_ORDER_MODES: CategoryOrderMode[] = [
+  "free",
+  "increasing",
+  "decreasing",
+  "topFirst",
+  "bottomFirst",
+];
 
 interface SetupProps {
   onStart: (
@@ -14,6 +24,9 @@ interface SetupProps {
     manualDiceMode: boolean,
     timeAttackMode: boolean,
     timeAttackSeconds: number,
+    categoryOrderMode: CategoryOrderMode,
+    blindKniffelMode: boolean,
+    jokerRuleMode: boolean,
   ) => void;
   onResume: (pausedGame: PausedGame) => void;
 }
@@ -60,6 +73,9 @@ function PausedGamesList({
             g.state.extendedMode && "Erweitert",
             g.state.manualDiceMode && "Echte Würfel",
             g.state.timeAttackMode && "Zeitangriff",
+            g.state.categoryOrderMode !== "free" && CATEGORY_ORDER_LABELS[g.state.categoryOrderMode],
+            g.state.blindKniffelMode && "Blind-Kniffel",
+            g.state.jokerRuleMode && "Joker-Regel",
           ].filter(Boolean) as string[];
           const leader = g.state.players
             .slice()
@@ -111,6 +127,9 @@ export function Setup({ onStart, onResume }: SetupProps) {
   const [timeAttackSecondsInput, setTimeAttackSecondsInput] = useState(
     String(DEFAULT_TIME_ATTACK_SECONDS),
   );
+  const [categoryOrderMode, setCategoryOrderMode] = useState<CategoryOrderMode>("free");
+  const [blindKniffelMode, setBlindKniffelMode] = useState(false);
+  const [jokerRuleMode, setJokerRuleMode] = useState(false);
 
   const updateName = (index: number, value: string) => {
     setNames((prev) => prev.map((n, i) => (i === index ? value : n)));
@@ -137,7 +156,16 @@ export function Setup({ onStart, onResume }: SetupProps) {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!canStart) return;
-    onStart(names, extendedMode, manualDiceMode, timeAttackMode, timeAttackSeconds);
+    onStart(
+      names,
+      extendedMode,
+      manualDiceMode,
+      timeAttackMode,
+      timeAttackSeconds,
+      categoryOrderMode,
+      blindKniffelMode,
+      jokerRuleMode,
+    );
   };
 
   return (
@@ -244,6 +272,55 @@ export function Setup({ onStart, onResume }: SetupProps) {
               </div>
             </div>
           )}
+
+          <label className="section-label">Zusatzregeln</label>
+
+          <div className="order-mode-picker">
+            <label htmlFor="category-order-mode">Reihenfolge der Felder</label>
+            <select
+              id="category-order-mode"
+              value={categoryOrderMode}
+              onChange={(e) => setCategoryOrderMode(e.target.value as CategoryOrderMode)}
+            >
+              {CATEGORY_ORDER_MODES.map((mode) => (
+                <option key={mode} value={mode}>
+                  {CATEGORY_ORDER_LABELS[mode]}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <label className="toggle-row">
+            <div>
+              <div className="toggle-title">Blind-Kniffel</div>
+              <div className="toggle-desc">
+                Full House, beide Straßen, Kniffel, Zwei Paare &amp; Chaos zählen nur beim ersten
+                Wurf – nur bei App-Würfeln wirksam
+              </div>
+            </div>
+            <input
+              type="checkbox"
+              checked={blindKniffelMode}
+              onChange={(e) => setBlindKniffelMode(e.target.checked)}
+            />
+            <span className="switch" />
+          </label>
+
+          <label className="toggle-row">
+            <div>
+              <div className="toggle-title">Joker-Regel</div>
+              <div className="toggle-desc">
+                Weiterer Kniffel muss ins passende Einser-bis-Sechser-Feld, sonst als Joker in ein
+                beliebiges unteres Feld – nur bei App-Würfeln wirksam
+              </div>
+            </div>
+            <input
+              type="checkbox"
+              checked={jokerRuleMode}
+              onChange={(e) => setJokerRuleMode(e.target.checked)}
+            />
+            <span className="switch" />
+          </label>
 
           <button type="submit" className="primary-btn start-btn" disabled={!canStart}>
             Spiel starten

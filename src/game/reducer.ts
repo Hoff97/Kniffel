@@ -1,11 +1,13 @@
 import { clampScore, computeScore, isKniffel, maxScoreForCategory, rollDie } from "./scoring";
-import { activeCategories, isCategoryOpen, isGameFinished } from "./stats";
+import { isGameFinished } from "./stats";
+import { canScoreBlindCategory, getJokerScore, getTurnAvailability } from "./turnRules";
 import {
   DEFAULT_TIME_ATTACK_SECONDS,
   DICE_COUNT,
   KNIFFEL_FIRST_SCORE,
   MAX_ROLLS,
   type Category,
+  type CategoryOrderMode,
   type GameState,
   type Player,
 } from "./types";
@@ -18,6 +20,9 @@ export type GameAction =
       manualDiceMode: boolean;
       timeAttackMode: boolean;
       timeAttackSeconds: number;
+      categoryOrderMode: CategoryOrderMode;
+      blindKniffelMode: boolean;
+      jokerRuleMode: boolean;
     }
   | { type: "ROLL" }
   | { type: "TOGGLE_HOLD"; index: number }
@@ -35,6 +40,9 @@ export const initialState: GameState = {
   manualDiceMode: false,
   timeAttackMode: false,
   timeAttackSeconds: DEFAULT_TIME_ATTACK_SECONDS,
+  categoryOrderMode: "free",
+  blindKniffelMode: false,
+  jokerRuleMode: false,
   turnNumber: 0,
   players: [],
   currentPlayerIndex: 0,
@@ -87,6 +95,9 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         manualDiceMode: action.manualDiceMode,
         timeAttackMode: action.timeAttackMode,
         timeAttackSeconds: action.timeAttackSeconds,
+        categoryOrderMode: action.categoryOrderMode,
+        blindKniffelMode: action.blindKniffelMode,
+        jokerRuleMode: action.jokerRuleMode,
         players,
         currentPlayerIndex: 0,
       };
@@ -117,6 +128,22 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       const player = state.players[state.currentPlayerIndex];
       if (isCategoryFilled(player, action.category)) return state;
 
+      const availability = getTurnAvailability(
+        player,
+        state.dice,
+        state.extendedMode,
+        false,
+        state.categoryOrderMode,
+        state.jokerRuleMode,
+      );
+      if (!availability.reachable.includes(action.category)) return state;
+      if (
+        !action.crossOut &&
+        !canScoreBlindCategory(action.category, state.rollsUsed, false, state.blindKniffelMode)
+      ) {
+        return state;
+      }
+
       const rolledKniffel = isKniffel(state.dice);
       const hadKniffelBefore = player.scores.kniffel === KNIFFEL_FIRST_SCORE;
       const grantsBonus = rolledKniffel && hadKniffelBefore;
@@ -130,7 +157,9 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       if (action.crossOut) {
         updatedPlayer.crossedOut[action.category] = true;
       } else {
-        updatedPlayer.scores[action.category] = computeScore(action.category, state.dice);
+        updatedPlayer.scores[action.category] = availability.jokerActive
+          ? getJokerScore(action.category, state.dice)
+          : computeScore(action.category, state.dice);
       }
 
       if (grantsBonus) {
@@ -149,6 +178,16 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
 
       const player = state.players[state.currentPlayerIndex];
       if (isCategoryFilled(player, action.category)) return state;
+
+      const availability = getTurnAvailability(
+        player,
+        state.dice,
+        state.extendedMode,
+        true,
+        state.categoryOrderMode,
+        state.jokerRuleMode,
+      );
+      if (!availability.reachable.includes(action.category)) return state;
 
       const hadKniffelBefore = player.scores.kniffel === KNIFFEL_FIRST_SCORE;
       const grantsBonus = action.extraKniffel && hadKniffelBefore;
@@ -180,9 +219,15 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       if (state.phase !== "playing") return state;
 
       const player = state.players[state.currentPlayerIndex];
-      const openCategories = activeCategories(state.extendedMode).filter((c) =>
-        isCategoryOpen(player, c),
+      const availability = getTurnAvailability(
+        player,
+        state.dice,
+        state.extendedMode,
+        state.manualDiceMode,
+        state.categoryOrderMode,
+        state.jokerRuleMode,
       );
+      const openCategories = availability.reachable.filter((c) => !isCategoryFilled(player, c));
       if (openCategories.length === 0) return state;
 
       const randomCategory = openCategories[Math.floor(Math.random() * openCategories.length)];
