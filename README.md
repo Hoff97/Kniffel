@@ -10,6 +10,7 @@ Neben den klassischen Kniffel-Regeln:
 - **Unten**: Dreierpasch, Viererpasch (alle Würfel zählen), Full House, Kleine Straße (4 in Folge), Große Straße (5 in Folge), Chance.
 - **Kniffel**: Der erste Kniffel gibt **50 Punkte**. Jeder weitere Kniffel gibt **zusätzlich 100 Punkte** und der Spieler bekommt **eine weitere Runde**.
 - **Erweiterter Modus** (optional, beim Start aktivierbar): High Roller (Summe > 21, alle Würfel zählen), Zwei Paare (25 Punkte), Chaos (alle Würfel verschieden, 30 Punkte).
+- **Echte Würfel** (optional, beim Start aktivierbar): Statt in der App zu würfeln, werden die Augenzahlen echter Würfel eingetippt (auf einen Würfel tippen zum Hochzählen der Zahl) und Würfel können zwischen den Würfen gehalten werden.
 - Für jeden Spieler werden laufend die Gesamtpunktzahl und die fehlenden Punkte bis zum Bonus angezeigt.
 - Kann ein Spieler nichts eintragen, muss er ein Feld streichen – gestrichene Felder können danach nicht mehr benutzt werden.
 

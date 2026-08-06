@@ -1,7 +1,7 @@
 import { useState } from "react";
 
 interface SetupProps {
-  onStart: (names: string[], extendedMode: boolean) => void;
+  onStart: (names: string[], extendedMode: boolean, manualDiceMode: boolean) => void;
 }
 
 const MIN_PLAYERS = 1;
@@ -10,6 +10,7 @@ const MAX_PLAYERS = 8;
 export function Setup({ onStart }: SetupProps) {
   const [names, setNames] = useState<string[]>(["", ""]);
   const [extendedMode, setExtendedMode] = useState(false);
+  const [manualDiceMode, setManualDiceMode] = useState(false);
 
   const updateName = (index: number, value: string) => {
     setNames((prev) => prev.map((n, i) => (i === index ? value : n)));
@@ -31,7 +32,7 @@ export function Setup({ onStart }: SetupProps) {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!canStart) return;
-    onStart(names, extendedMode);
+    onStart(names, extendedMode, manualDiceMode);
   };
 
   return (
@@ -88,6 +89,19 @@ export function Setup({ onStart }: SetupProps) {
               type="checkbox"
               checked={extendedMode}
               onChange={(e) => setExtendedMode(e.target.checked)}
+            />
+            <span className="switch" />
+          </label>
+
+          <label className="toggle-row">
+            <div>
+              <div className="toggle-title">Echte Würfel</div>
+              <div className="toggle-desc">Mit echten Würfeln spielen und Ergebnis eintragen</div>
+            </div>
+            <input
+              type="checkbox"
+              checked={manualDiceMode}
+              onChange={(e) => setManualDiceMode(e.target.checked)}
             />
             <span className="switch" />
           </label>

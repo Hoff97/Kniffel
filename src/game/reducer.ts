@@ -10,8 +10,9 @@ import {
 } from "./types";
 
 export type GameAction =
-  | { type: "START_GAME"; names: string[]; extendedMode: boolean }
+  | { type: "START_GAME"; names: string[]; extendedMode: boolean; manualDiceMode: boolean }
   | { type: "ROLL" }
+  | { type: "SET_DICE"; values: number[] }
   | { type: "TOGGLE_HOLD"; index: number }
   | { type: "FILL_CATEGORY"; category: Category; crossOut: boolean }
   | { type: "NEW_GAME" }
@@ -20,6 +21,7 @@ export type GameAction =
 export const initialState: GameState = {
   phase: "setup",
   extendedMode: false,
+  manualDiceMode: false,
   players: [],
   currentPlayerIndex: 0,
   dice: [1, 1, 1, 1, 1],
@@ -27,6 +29,10 @@ export const initialState: GameState = {
   rollsUsed: 0,
   lastKniffelBonus: false,
 };
+
+function clampDie(value: number): number {
+  return Math.min(6, Math.max(1, Math.round(value)));
+}
 
 function makePlayer(name: string, id: string): Player {
   return { id, name, scores: {}, crossedOut: {}, kniffelBonusCount: 0 };
@@ -44,6 +50,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         ...initialState,
         phase: "playing",
         extendedMode: action.extendedMode,
+        manualDiceMode: action.manualDiceMode,
         players,
         currentPlayerIndex: 0,
       };
@@ -53,6 +60,14 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       if (state.phase !== "playing") return state;
       if (state.rollsUsed >= MAX_ROLLS) return state;
       const dice = state.dice.map((d, i) => (state.held[i] ? d : rollDie()));
+      return { ...state, dice, rollsUsed: state.rollsUsed + 1, lastKniffelBonus: false };
+    }
+
+    case "SET_DICE": {
+      if (state.phase !== "playing") return state;
+      if (state.rollsUsed >= MAX_ROLLS) return state;
+      if (action.values.length !== DICE_COUNT) return state;
+      const dice = state.dice.map((d, i) => (state.held[i] ? d : clampDie(action.values[i])));
       return { ...state, dice, rollsUsed: state.rollsUsed + 1, lastKniffelBonus: false };
     }
 

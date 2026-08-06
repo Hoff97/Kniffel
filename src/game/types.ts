@@ -64,6 +64,7 @@ export type GamePhase = "setup" | "playing" | "finished";
 export interface GameState {
   phase: GamePhase;
   extendedMode: boolean;
+  manualDiceMode: boolean;
   players: Player[];
   currentPlayerIndex: number;
   dice: number[];

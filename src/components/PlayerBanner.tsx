@@ -4,16 +4,24 @@ import { MAX_ROLLS, type Player } from "../game/types";
 interface PlayerBannerProps {
   player: Player;
   rollsUsed: number;
-  onRoll: () => void;
+  manualDiceMode: boolean;
   onNewGame: () => void;
 }
 
-export function PlayerBanner({ player, rollsUsed, onRoll, onNewGame }: PlayerBannerProps) {
+export function PlayerBanner({ player, rollsUsed, manualDiceMode, onNewGame }: PlayerBannerProps) {
   const rollsLeft = MAX_ROLLS - rollsUsed;
   const missing = pointsMissingForBonus(player);
 
   let hint: string;
-  if (rollsUsed === 0) {
+  if (manualDiceMode) {
+    if (rollsUsed === 0) {
+      hint = "Würfel werfen und Zahlen eintippen";
+    } else if (rollsLeft > 0) {
+      hint = "Würfel halten oder neue Zahlen eintragen, oder Feld wählen";
+    } else {
+      hint = "Letzter Wurf – jetzt ein Feld wählen";
+    }
+  } else if (rollsUsed === 0) {
     hint = "Würfeln zum Start des Zuges";
   } else if (rollsLeft > 0) {
     hint = "Würfel halten oder erneut würfeln, oder Feld wählen";
@@ -34,14 +42,6 @@ export function PlayerBanner({ player, rollsUsed, onRoll, onNewGame }: PlayerBan
         </div>
       </div>
       <div className="player-banner-actions">
-        <button
-          type="button"
-          className="primary-btn roll-btn"
-          onClick={onRoll}
-          disabled={rollsLeft <= 0}
-        >
-          🎲 Würfeln ({rollsLeft} übrig)
-        </button>
         <p className="hint-text">{hint}</p>
         <button type="button" className="text-btn" onClick={onNewGame}>
           Spiel beenden

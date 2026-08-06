@@ -518,6 +518,72 @@ button {
   white-space: nowrap;
 }
 
+.roll-controls {
+  display: flex;
+  justify-content: center;
+  padding: 2px 0 6px;
+}
+
+.roll-controls .roll-btn {
+  width: auto;
+  min-width: 220px;
+}
+
+/* Manual dice entry */
+
+.manual-dice-row {
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.manual-die-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.die-editable {
+  cursor: pointer;
+}
+
+.die-editable:hover {
+  box-shadow: 0 0 0 3px var(--gold), var(--shadow-lg);
+}
+
+.die-editable:active {
+  transform: scale(0.96);
+}
+
+.hold-toggle-btn {
+  border: none;
+  border-radius: 999px;
+  width: 64px;
+  padding: 5px 4px;
+  font-size: 10px;
+  font-weight: 700;
+  background: var(--card-bg-soft);
+  color: var(--text-muted);
+  cursor: pointer;
+  white-space: nowrap;
+  text-align: center;
+}
+
+.hold-toggle-btn:hover {
+  background: var(--accent-soft);
+  color: var(--accent-dark);
+}
+
+.hold-toggle-active {
+  background: var(--accent);
+  color: white;
+}
+
+.hold-toggle-active:hover {
+  background: var(--accent-dark);
+  color: white;
+}
+
 /* Score table */
 
 .score-table-wrap {
@@ -681,6 +747,16 @@ button {
     width: 54px;
     height: 54px;
     border-radius: 13px;
+  }
+
+  .manual-dice-row {
+    gap: 8px;
+  }
+
+  .hold-toggle-btn {
+    width: 54px;
+    font-size: 9px;
+    padding: 4px 2px;
   }
 
   .player-banner {
