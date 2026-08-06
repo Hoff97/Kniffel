@@ -91,6 +91,86 @@ button {
   font-size: 15px;
 }
 
+.paused-games {
+  margin-bottom: 24px;
+}
+
+.paused-games-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.paused-game-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  background: var(--card-bg-soft);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+}
+
+.paused-game-info {
+  min-width: 0;
+}
+
+.paused-game-names {
+  font-weight: 800;
+  font-size: 14px;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.paused-game-meta {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.paused-game-badges {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+}
+
+.badge-pill {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--accent-dark);
+  background: var(--accent-soft);
+  padding: 3px 8px;
+  border-radius: 999px;
+}
+
+.paused-game-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+}
+
+.resume-btn {
+  border: none;
+  border-radius: 10px;
+  padding: 8px 14px;
+  background: linear-gradient(120deg, var(--accent), var(--accent-dark));
+  color: white;
+  font-weight: 800;
+  font-size: 13px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.resume-btn:hover {
+  transform: translateY(-1px);
+}
+
 .section-label {
   display: block;
   font-weight: 700;
@@ -237,6 +317,32 @@ button {
 
 .toggle-row input:checked + .switch::after {
   transform: translateX(20px);
+}
+
+.time-attack-duration {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: var(--card-bg-soft);
+  border-radius: var(--radius-md);
+  padding: 12px 16px;
+  margin: -12px 0 24px;
+}
+
+.time-attack-duration label {
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--text);
+}
+
+.time-attack-duration select {
+  border: 2px solid var(--accent-soft);
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-weight: 700;
+  color: var(--accent-dark);
+  background: var(--card-bg);
 }
 
 .primary-btn {
@@ -423,6 +529,85 @@ button {
   text-decoration: underline;
   cursor: pointer;
   padding: 2px;
+}
+
+.player-banner-btn-row {
+  display: flex;
+  gap: 14px;
+}
+
+/* Time attack */
+
+.time-attack-bar {
+  background: var(--card-bg);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.time-attack-hint {
+  margin: 0;
+  font-weight: 700;
+  color: var(--text);
+  font-size: 14px;
+}
+
+.start-round-btn,
+.end-round-btn {
+  width: auto;
+  min-width: 180px;
+}
+
+.time-attack-frozen {
+  justify-content: center;
+}
+
+.time-attack-frozen .time-attack-hint {
+  color: var(--gold);
+}
+
+.time-attack-countdown {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  min-width: 160px;
+}
+
+.time-attack-seconds {
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--accent-dark);
+  font-variant-numeric: tabular-nums;
+  min-width: 46px;
+}
+
+.time-attack-track {
+  flex: 1;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--card-bg-soft);
+  overflow: hidden;
+}
+
+.time-attack-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), var(--accent-dark));
+  border-radius: 999px;
+  transition: width 1s linear;
+}
+
+.time-attack-urgent .time-attack-seconds {
+  color: var(--danger);
+}
+
+.time-attack-urgent .time-attack-fill {
+  background: linear-gradient(90deg, var(--danger), #b23a52);
 }
 
 /* Dice */

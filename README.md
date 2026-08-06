@@ -11,10 +11,15 @@ Neben den klassischen Kniffel-Regeln:
 - **Kniffel**: Der erste Kniffel gibt **50 Punkte**. Jeder weitere Kniffel gibt **zusätzlich 100 Punkte** und der Spieler bekommt **eine weitere Runde**.
 - **Erweiterter Modus** (optional, beim Start aktivierbar): High Roller (Summe > 21, alle Würfel zählen), Zwei Paare (25 Punkte), Chaos (alle Würfel verschieden, 30 Punkte).
 - **Echte Würfel** (optional, beim Start aktivierbar): Statt in der App zu würfeln, wird mit echten Würfeln gespielt. Das erzielte Ergebnis wird direkt in der gewählten Zeile eingetragen – ohne Würfelanzeige in der App. Ein zusätzlicher Kniffel (nachdem die Kniffel-Zeile schon ausgefüllt ist) wird über einen Schalter markiert und gibt +100 Punkte sowie eine Extra-Runde.
+- **Zeitangriff** (optional, beim Start aktivierbar, Dauer wählbar): Der aktive Spieler startet seine Runde manuell, danach läuft die Zeit. Bei echten Würfeln beendet der Spieler die Runde ebenfalls manuell und trägt sein Ergebnis erst danach ein. Läuft die Zeit ab, bevor die Runde beendet wurde, wird automatisch ein zufälliges noch offenes Feld gestrichen.
 - Für jeden Spieler werden laufend die Gesamtpunktzahl und die fehlenden Punkte bis zum Bonus angezeigt.
 - Kann ein Spieler nichts eintragen, muss er ein Feld streichen – gestrichene Felder können danach nicht mehr benutzt werden.
 
 Nach jedem abgeschlossenen Zug wechselt die App automatisch zum nächsten Spieler.
+
+## Pausieren
+
+Ein laufendes Spiel kann jederzeit über „Pausieren" unterbrochen werden. Es wird vollständig (inkl. aktuellem Wurf) in einer Liste pausierter Spiele im lokalen Speicher abgelegt und kann auf dem Startbildschirm über „Fortsetzen" wieder aufgenommen werden. Mehrere Spiele können gleichzeitig pausiert sein.
 
 ## Entwicklung
 

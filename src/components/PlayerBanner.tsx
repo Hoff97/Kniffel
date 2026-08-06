@@ -5,16 +5,35 @@ interface PlayerBannerProps {
   player: Player;
   rollsUsed: number;
   manualDiceMode: boolean;
+  timeAttackMode: boolean;
+  roundStarted: boolean;
+  roundEndedManually: boolean;
   onNewGame: () => void;
+  onPause: () => void;
 }
 
-export function PlayerBanner({ player, rollsUsed, manualDiceMode, onNewGame }: PlayerBannerProps) {
+export function PlayerBanner({
+  player,
+  rollsUsed,
+  manualDiceMode,
+  timeAttackMode,
+  roundStarted,
+  roundEndedManually,
+  onNewGame,
+  onPause,
+}: PlayerBannerProps) {
   const rollsLeft = MAX_ROLLS - rollsUsed;
   const missing = pointsMissingForBonus(player);
 
   let hint: string;
-  if (manualDiceMode) {
-    hint = "Mit echten Würfeln werfen, dann unten eine Kategorie wählen und Ergebnis eintragen";
+  if (timeAttackMode && !roundStarted) {
+    hint = "Wenn du bereit bist, starte deine Runde";
+  } else if (manualDiceMode) {
+    if (timeAttackMode && !roundEndedManually) {
+      hint = "Würfeln, dann Runde beenden";
+    } else {
+      hint = "Würfel werfen und Zahlen eintippen";
+    }
   } else if (rollsUsed === 0) {
     hint = "Würfeln zum Start des Zuges";
   } else if (rollsLeft > 0) {
@@ -37,9 +56,14 @@ export function PlayerBanner({ player, rollsUsed, manualDiceMode, onNewGame }: P
       </div>
       <div className="player-banner-actions">
         <p className="hint-text">{hint}</p>
-        <button type="button" className="text-btn" onClick={onNewGame}>
-          Spiel beenden
-        </button>
+        <div className="player-banner-btn-row">
+          <button type="button" className="text-btn" onClick={onPause}>
+            ⏸ Pausieren
+          </button>
+          <button type="button" className="text-btn" onClick={onNewGame}>
+            Spiel beenden
+          </button>
+        </div>
       </div>
     </div>
   );

@@ -32,7 +32,7 @@ interface ScoreTableProps {
   players: Player[];
   currentPlayerIndex: number;
   dice: number[];
-  rollsUsed: number;
+  canScore: boolean;
   extendedMode: boolean;
   manualDiceMode: boolean;
   extraKniffelFlag: boolean;
@@ -156,7 +156,7 @@ function CategoryRow({
   players,
   currentPlayerIndex,
   dice,
-  rollsUsed,
+  canScore,
   manualDiceMode,
   extraKniffelFlag,
   onToggleExtraKniffel,
@@ -168,7 +168,7 @@ function CategoryRow({
   players: Player[];
   currentPlayerIndex: number;
   dice: number[];
-  rollsUsed: number;
+  canScore: boolean;
   manualDiceMode: boolean;
   extraKniffelFlag: boolean;
   onToggleExtraKniffel: (value: boolean) => void;
@@ -176,7 +176,6 @@ function CategoryRow({
   onManualFill: (category: Category, value: number, crossOut: boolean) => void;
   onOpenModal: (category: Category) => void;
 }) {
-  const canAct = manualDiceMode || rollsUsed > 0;
   return (
     <tr>
       <th scope="row" className="cat-cell" title={CATEGORY_HINTS[category]}>
@@ -216,7 +215,7 @@ function CategoryRow({
             </td>
           );
         }
-        if (isCurrent && canAct) {
+        if (isCurrent && canScore) {
           if (manualDiceMode) {
             const fixedValue = fixedScoreForCategory(category);
             return (
@@ -282,7 +281,7 @@ export function ScoreTable({
   players,
   currentPlayerIndex,
   dice,
-  rollsUsed,
+  canScore,
   extendedMode,
   manualDiceMode,
   extraKniffelFlag,
@@ -305,7 +304,7 @@ export function ScoreTable({
     players,
     currentPlayerIndex,
     dice,
-    rollsUsed,
+    canScore,
     manualDiceMode,
     extraKniffelFlag,
     onToggleExtraKniffel,

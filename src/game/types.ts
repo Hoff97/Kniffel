@@ -51,6 +51,9 @@ export const KNIFFEL_ADDITIONAL_BONUS = 100;
 export const MAX_ROLLS = 3;
 export const DICE_COUNT = 5;
 
+export const TIME_ATTACK_DURATION_OPTIONS = [30, 45, 60, 90, 120];
+export const DEFAULT_TIME_ATTACK_SECONDS = 60;
+
 export interface Player {
   id: string;
   name: string;
@@ -65,6 +68,9 @@ export interface GameState {
   phase: GamePhase;
   extendedMode: boolean;
   manualDiceMode: boolean;
+  timeAttackMode: boolean;
+  timeAttackSeconds: number;
+  turnNumber: number;
   players: Player[];
   currentPlayerIndex: number;
   dice: number[];
