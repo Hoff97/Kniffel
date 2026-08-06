@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { computeScore, maxScoreForCategory } from "../game/scoring";
+import { useEffect, useRef, useState } from "react";
+import { computeScore, maxScoreForCategory, UPPER_FACE_VALUES } from "../game/scoring";
 import {
   hasUpperBonus,
   kniffelBonusTotal,
@@ -11,13 +11,17 @@ import {
 import {
   CATEGORY_HINTS,
   CATEGORY_LABELS,
+  DICE_COUNT,
   EXTENDED_CATEGORIES,
+  KNIFFEL_FIRST_SCORE,
   LOWER_CATEGORIES,
   UPPER_BONUS_POINTS,
   UPPER_CATEGORIES,
   type Category,
   type Player,
+  type UpperCategory,
 } from "../game/types";
+import { Modal } from "./Modal";
 
 interface ScoreTableProps {
   players: Player[];
@@ -26,64 +30,127 @@ interface ScoreTableProps {
   rollsUsed: number;
   extendedMode: boolean;
   manualDiceMode: boolean;
+  extraKniffelFlag: boolean;
+  onToggleExtraKniffel: (value: boolean) => void;
   onFill: (category: Category, crossOut: boolean) => void;
   onManualFill: (category: Category, value: number, crossOut: boolean) => void;
 }
 
-function ManualScoreCell({
+function isUpperCategory(category: Category): category is UpperCategory {
+  return category in UPPER_FACE_VALUES;
+}
+
+function ManualEntryModal({
   category,
   onSubmit,
   onCrossOut,
+  onClose,
 }: {
   category: Category;
   onSubmit: (value: number) => void;
   onCrossOut: () => void;
+  onClose: () => void;
 }) {
   const [value, setValue] = useState("");
   const max = maxScoreForCategory(category);
 
-  const submit = () => {
+  const submitValue = () => {
     onSubmit(value === "" ? 0 : Number(value));
-    setValue("");
   };
 
-  return (
-    <td className="score-cell actionable manual">
-      <input
-        type="number"
-        inputMode="numeric"
-        className="manual-input"
-        min={0}
-        max={max}
-        placeholder="0"
-        value={value}
-        onChange={(e) => setValue(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") submit();
-        }}
-        aria-label={`${CATEGORY_LABELS[category]} Ergebnis eingeben`}
-      />
-      <div className="manual-btn-row">
-        <button
-          type="button"
-          className="score-btn manual-confirm-btn"
-          onClick={submit}
-          aria-label={`${CATEGORY_LABELS[category]} eintragen`}
-          title="Eintragen"
-        >
-          ✓
+  if (isUpperCategory(category)) {
+    const face = UPPER_FACE_VALUES[category];
+    const counts = Array.from({ length: DICE_COUNT + 1 }, (_, i) => i);
+    return (
+      <Modal
+        title={CATEGORY_LABELS[category]}
+        subtitle={`Wie oft hast du die ${face} gewürfelt?`}
+        onClose={onClose}
+      >
+        <div className="modal-count-grid">
+          {counts.map((count) => (
+            <button
+              type="button"
+              key={count}
+              className="modal-count-btn"
+              onClick={() => onSubmit(count * face)}
+            >
+              <span className="modal-count-n">{count}×</span>
+              <span className="modal-count-pts">{count * face} Pkt.</span>
+            </button>
+          ))}
+        </div>
+        <button type="button" className="modal-cross-btn" onClick={onCrossOut}>
+          Feld streichen
         </button>
-        <button
-          type="button"
-          className="cross-btn"
-          onClick={onCrossOut}
-          aria-label={`${CATEGORY_LABELS[category]} streichen`}
-          title="Feld streichen"
-        >
-          ✕
+      </Modal>
+    );
+  }
+
+  return (
+    <Modal
+      title={CATEGORY_LABELS[category]}
+      subtitle={CATEGORY_HINTS[category]}
+      onClose={onClose}
+    >
+      <div className="modal-number-entry">
+        <input
+          type="number"
+          inputMode="numeric"
+          className="modal-input"
+          min={0}
+          max={max}
+          placeholder="0"
+          autoFocus
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") submitValue();
+          }}
+        />
+        <button type="button" className="primary-btn" onClick={submitValue}>
+          Eintragen
         </button>
       </div>
+      <button type="button" className="modal-cross-btn" onClick={onCrossOut}>
+        Feld streichen
+      </button>
+    </Modal>
+  );
+}
+
+function KniffelBonusToggle({
+  active,
+  onToggle,
+}: {
+  active: boolean;
+  onToggle: (value: boolean) => void;
+}) {
+  return (
+    <td className="score-cell kniffel-filled-cell">
+      <span className="filled-value">{KNIFFEL_FIRST_SCORE}</span>
+      <button
+        type="button"
+        className={`kniffel-bonus-btn${active ? " kniffel-bonus-active" : ""}`}
+        onClick={() => onToggle(!active)}
+        title="Weiterer Kniffel: +100 Punkte & Extra-Runde"
+      >
+        + Kniffel?
+      </button>
     </td>
+  );
+}
+
+function SectionRow({ label, playerCount }: { label: string; playerCount: number }) {
+  return (
+    <tr className="section-row">
+      <th scope="row" className="cat-cell">
+        {label}
+      </th>
+      {Array.from({ length: playerCount }, (_, i) => (
+        <td key={i} />
+      ))}
+    </tr>
   );
 }
 
@@ -94,8 +161,10 @@ function CategoryRow({
   dice,
   rollsUsed,
   manualDiceMode,
+  extraKniffelFlag,
+  onToggleExtraKniffel,
   onFill,
-  onManualFill,
+  onOpenModal,
 }: {
   category: Category;
   players: Player[];
@@ -103,8 +172,10 @@ function CategoryRow({
   dice: number[];
   rollsUsed: number;
   manualDiceMode: boolean;
+  extraKniffelFlag: boolean;
+  onToggleExtraKniffel: (value: boolean) => void;
   onFill: (category: Category, crossOut: boolean) => void;
-  onManualFill: (category: Category, value: number, crossOut: boolean) => void;
+  onOpenModal: (category: Category) => void;
 }) {
   const canAct = manualDiceMode || rollsUsed > 0;
   return (
@@ -116,6 +187,21 @@ function CategoryRow({
         const isCurrent = i === currentPlayerIndex;
         const filled = player.scores[category];
         const crossed = player.crossedOut[category];
+
+        if (
+          manualDiceMode &&
+          isCurrent &&
+          category === "kniffel" &&
+          filled === KNIFFEL_FIRST_SCORE
+        ) {
+          return (
+            <KniffelBonusToggle
+              key={player.id}
+              active={extraKniffelFlag}
+              onToggle={onToggleExtraKniffel}
+            />
+          );
+        }
 
         if (filled !== undefined) {
           return (
@@ -134,12 +220,15 @@ function CategoryRow({
         if (isCurrent && canAct) {
           if (manualDiceMode) {
             return (
-              <ManualScoreCell
-                key={player.id}
-                category={category}
-                onSubmit={(value) => onManualFill(category, value, false)}
-                onCrossOut={() => onManualFill(category, 0, true)}
-              />
+              <td key={player.id} className="score-cell actionable">
+                <button
+                  type="button"
+                  className="enter-btn"
+                  onClick={() => onOpenModal(category)}
+                >
+                  Eintragen
+                </button>
+              </td>
             );
           }
           const preview = computeScore(category, dice);
@@ -181,18 +270,34 @@ export function ScoreTable({
   rollsUsed,
   extendedMode,
   manualDiceMode,
+  extraKniffelFlag,
+  onToggleExtraKniffel,
   onFill,
   onManualFill,
 }: ScoreTableProps) {
+  const [modalCategory, setModalCategory] = useState<Category | null>(null);
+  const activeHeaderRef = useRef<HTMLTableCellElement | null>(null);
+
+  useEffect(() => {
+    activeHeaderRef.current?.scrollIntoView({
+      behavior: "smooth",
+      block: "nearest",
+      inline: "center",
+    });
+  }, [currentPlayerIndex]);
+
   const rowProps = {
     players,
     currentPlayerIndex,
     dice,
     rollsUsed,
     manualDiceMode,
+    extraKniffelFlag,
+    onToggleExtraKniffel,
     onFill,
-    onManualFill,
+    onOpenModal: setModalCategory,
   };
+
   return (
     <div className="score-table-wrap">
       <table className="score-table">
@@ -205,6 +310,7 @@ export function ScoreTable({
               <th
                 scope="col"
                 key={p.id}
+                ref={i === currentPlayerIndex ? activeHeaderRef : undefined}
                 className={`player-header${i === currentPlayerIndex ? " active-player" : ""}`}
               >
                 {p.name}
@@ -213,9 +319,7 @@ export function ScoreTable({
           </tr>
         </thead>
         <tbody>
-          <tr className="section-row">
-            <td colSpan={players.length + 1}>Oben</td>
-          </tr>
+          <SectionRow label="Oben" playerCount={players.length} />
           {UPPER_CATEGORIES.map((c) => (
             <CategoryRow key={c} category={c} {...rowProps} />
           ))}
@@ -242,18 +346,14 @@ export function ScoreTable({
             ))}
           </tr>
 
-          <tr className="section-row">
-            <td colSpan={players.length + 1}>Unten</td>
-          </tr>
+          <SectionRow label="Unten" playerCount={players.length} />
           {LOWER_CATEGORIES.map((c) => (
             <CategoryRow key={c} category={c} {...rowProps} />
           ))}
 
           {extendedMode && (
             <>
-              <tr className="section-row">
-                <td colSpan={players.length + 1}>Erweitert</td>
-              </tr>
+              <SectionRow label="Erweitert" playerCount={players.length} />
               {EXTENDED_CATEGORIES.map((c) => (
                 <CategoryRow key={c} category={c} {...rowProps} />
               ))}
@@ -278,6 +378,21 @@ export function ScoreTable({
           </tr>
         </tbody>
       </table>
+
+      {modalCategory && (
+        <ManualEntryModal
+          category={modalCategory}
+          onSubmit={(value) => {
+            onManualFill(modalCategory, value, false);
+            setModalCategory(null);
+          }}
+          onCrossOut={() => {
+            onManualFill(modalCategory, 0, true);
+            setModalCategory(null);
+          }}
+          onClose={() => setModalCategory(null)}
+        />
+      )}
     </div>
   );
 }

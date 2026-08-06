@@ -1,4 +1,4 @@
-import type { Category } from "./types";
+import type { Category, UpperCategory } from "./types";
 
 function counts(dice: number[]): Map<number, number> {
   const m = new Map<number, number>();
@@ -56,7 +56,7 @@ function isChaos(dice: number[]): boolean {
   return new Set(dice).size === 5;
 }
 
-const UPPER_VALUE: Record<string, number> = {
+export const UPPER_FACE_VALUES: Record<UpperCategory, number> = {
   ones: 1,
   twos: 2,
   threes: 3,
@@ -68,8 +68,8 @@ const UPPER_VALUE: Record<string, number> = {
 export function computeScore(category: Category, dice: number[]): number {
   if (dice.length !== 5) return 0;
 
-  if (category in UPPER_VALUE) {
-    const face = UPPER_VALUE[category];
+  if (category in UPPER_FACE_VALUES) {
+    const face = UPPER_FACE_VALUES[category as UpperCategory];
     return dice.filter((d) => d === face).length * face;
   }
 

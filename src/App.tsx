@@ -6,7 +6,7 @@ import { ScoreTable } from "./components/ScoreTable";
 import { Setup } from "./components/Setup";
 import { gameReducer, initialState } from "./game/reducer";
 import { loadState, saveState, clearState } from "./game/storage";
-import { KNIFFEL_FIRST_SCORE, MAX_ROLLS, type Category } from "./game/types";
+import { MAX_ROLLS, type Category } from "./game/types";
 
 function init() {
   return loadState() ?? initialState;
@@ -65,7 +65,6 @@ export default function App() {
   const currentPlayer = state.players[state.currentPlayerIndex];
   const canHold = state.rollsUsed > 0 && state.rollsUsed < MAX_ROLLS;
   const rollsLeft = MAX_ROLLS - state.rollsUsed;
-  const canFlagExtraKniffel = currentPlayer.scores.kniffel === KNIFFEL_FIRST_SCORE;
 
   return (
     <div className="app-shell">
@@ -86,21 +85,7 @@ export default function App() {
         onNewGame={handleNewGame}
       />
 
-      {state.manualDiceMode ? (
-        canFlagExtraKniffel && (
-          <label className="extra-kniffel-toggle">
-            <input
-              type="checkbox"
-              checked={extraKniffelFlag}
-              onChange={(e) => setExtraKniffelFlag(e.target.checked)}
-            />
-            <span className="switch" />
-            <span className="extra-kniffel-text">
-              Zusätzlicher Kniffel in dieser Runde? (+100 Punkte &amp; Extra-Runde)
-            </span>
-          </label>
-        )
-      ) : (
+      {!state.manualDiceMode && (
         <>
           <Dice
             dice={state.dice}
@@ -129,6 +114,8 @@ export default function App() {
         rollsUsed={state.rollsUsed}
         extendedMode={state.extendedMode}
         manualDiceMode={state.manualDiceMode}
+        extraKniffelFlag={extraKniffelFlag}
+        onToggleExtraKniffel={setExtraKniffelFlag}
         onFill={handleFill}
         onManualFill={handleManualFill}
       />
