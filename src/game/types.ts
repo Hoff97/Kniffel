@@ -51,8 +51,9 @@ export const KNIFFEL_ADDITIONAL_BONUS = 100;
 export const MAX_ROLLS = 3;
 export const DICE_COUNT = 5;
 
-export const TIME_ATTACK_DURATION_OPTIONS = [30, 45, 60, 90, 120];
 export const DEFAULT_TIME_ATTACK_SECONDS = 60;
+export const MIN_TIME_ATTACK_SECONDS = 5;
+export const MAX_TIME_ATTACK_SECONDS = 600;
 
 export interface Player {
   id: string;

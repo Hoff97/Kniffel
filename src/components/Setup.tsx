@@ -1,7 +1,11 @@
 import { useEffect, useState } from "react";
 import { listPausedGames, removePausedGame, type PausedGame } from "../game/storage";
 import { grandTotal } from "../game/stats";
-import { DEFAULT_TIME_ATTACK_SECONDS, TIME_ATTACK_DURATION_OPTIONS } from "../game/types";
+import {
+  DEFAULT_TIME_ATTACK_SECONDS,
+  MAX_TIME_ATTACK_SECONDS,
+  MIN_TIME_ATTACK_SECONDS,
+} from "../game/types";
 
 interface SetupProps {
   onStart: (
@@ -104,7 +108,9 @@ export function Setup({ onStart, onResume }: SetupProps) {
   const [extendedMode, setExtendedMode] = useState(false);
   const [manualDiceMode, setManualDiceMode] = useState(false);
   const [timeAttackMode, setTimeAttackMode] = useState(false);
-  const [timeAttackSeconds, setTimeAttackSeconds] = useState(DEFAULT_TIME_ATTACK_SECONDS);
+  const [timeAttackSecondsInput, setTimeAttackSecondsInput] = useState(
+    String(DEFAULT_TIME_ATTACK_SECONDS),
+  );
 
   const updateName = (index: number, value: string) => {
     setNames((prev) => prev.map((n, i) => (i === index ? value : n)));
@@ -122,6 +128,11 @@ export function Setup({ onStart, onResume }: SetupProps) {
 
   const validNames = names.map((n) => n.trim()).filter((n) => n.length > 0);
   const canStart = validNames.length >= 1;
+
+  const parsedSeconds = Number(timeAttackSecondsInput);
+  const timeAttackSeconds = Number.isFinite(parsedSeconds)
+    ? Math.min(MAX_TIME_ATTACK_SECONDS, Math.max(MIN_TIME_ATTACK_SECONDS, Math.round(parsedSeconds)))
+    : DEFAULT_TIME_ATTACK_SECONDS;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -217,18 +228,20 @@ export function Setup({ onStart, onResume }: SetupProps) {
 
           {timeAttackMode && (
             <div className="time-attack-duration">
-              <label htmlFor="time-attack-seconds">Zeit pro Runde</label>
-              <select
-                id="time-attack-seconds"
-                value={timeAttackSeconds}
-                onChange={(e) => setTimeAttackSeconds(Number(e.target.value))}
-              >
-                {TIME_ATTACK_DURATION_OPTIONS.map((s) => (
-                  <option key={s} value={s}>
-                    {s} Sekunden
-                  </option>
-                ))}
-              </select>
+              <label htmlFor="time-attack-seconds">Zeit pro Runde (Sekunden)</label>
+              <div className="time-attack-duration-input-wrap">
+                <input
+                  id="time-attack-seconds"
+                  type="number"
+                  inputMode="numeric"
+                  min={MIN_TIME_ATTACK_SECONDS}
+                  max={MAX_TIME_ATTACK_SECONDS}
+                  value={timeAttackSecondsInput}
+                  onChange={(e) => setTimeAttackSecondsInput(e.target.value)}
+                  onBlur={() => setTimeAttackSecondsInput(String(timeAttackSeconds))}
+                />
+                <span className="time-attack-duration-unit">s</span>
+              </div>
             </div>
           )}
 

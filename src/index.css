@@ -336,13 +336,33 @@ button {
   color: var(--text);
 }
 
-.time-attack-duration select {
+.time-attack-duration-input-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+}
+
+.time-attack-duration input {
+  width: 68px;
   border: 2px solid var(--accent-soft);
   border-radius: 8px;
-  padding: 6px 10px;
+  padding: 6px 8px;
   font-weight: 700;
+  font-size: 15px;
+  text-align: center;
   color: var(--accent-dark);
   background: var(--card-bg);
+}
+
+.time-attack-duration input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.time-attack-duration-unit {
+  font-weight: 700;
+  color: var(--text-muted);
 }
 
 .primary-btn {
