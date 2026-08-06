@@ -128,6 +128,19 @@ export function maxScoreForCategory(category: Category): number {
   return CATEGORY_MAX[category];
 }
 
+const FIXED_CATEGORY_POINTS: Partial<Record<Category, number>> = {
+  fullHouse: 25,
+  smallStraight: 30,
+  largeStraight: 40,
+  kniffel: 50,
+  twoPairs: 25,
+  chaos: 30,
+};
+
+export function fixedScoreForCategory(category: Category): number | null {
+  return FIXED_CATEGORY_POINTS[category] ?? null;
+}
+
 export function clampScore(value: number, max: number): number {
   if (Number.isNaN(value)) return 0;
   return Math.min(max, Math.max(0, Math.round(value)));

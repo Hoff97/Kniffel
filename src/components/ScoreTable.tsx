@@ -1,5 +1,10 @@
 import { useEffect, useRef, useState } from "react";
-import { computeScore, maxScoreForCategory, UPPER_FACE_VALUES } from "../game/scoring";
+import {
+  computeScore,
+  fixedScoreForCategory,
+  maxScoreForCategory,
+  UPPER_FACE_VALUES,
+} from "../game/scoring";
 import {
   hasUpperBonus,
   kniffelBonusTotal,
@@ -43,12 +48,10 @@ function isUpperCategory(category: Category): category is UpperCategory {
 function ManualEntryModal({
   category,
   onSubmit,
-  onCrossOut,
   onClose,
 }: {
   category: Category;
   onSubmit: (value: number) => void;
-  onCrossOut: () => void;
   onClose: () => void;
 }) {
   const [value, setValue] = useState("");
@@ -80,9 +83,6 @@ function ManualEntryModal({
             </button>
           ))}
         </div>
-        <button type="button" className="modal-cross-btn" onClick={onCrossOut}>
-          Feld streichen
-        </button>
       </Modal>
     );
   }
@@ -112,9 +112,6 @@ function ManualEntryModal({
           Eintragen
         </button>
       </div>
-      <button type="button" className="modal-cross-btn" onClick={onCrossOut}>
-        Feld streichen
-      </button>
     </Modal>
   );
 }
@@ -164,6 +161,7 @@ function CategoryRow({
   extraKniffelFlag,
   onToggleExtraKniffel,
   onFill,
+  onManualFill,
   onOpenModal,
 }: {
   category: Category;
@@ -175,6 +173,7 @@ function CategoryRow({
   extraKniffelFlag: boolean;
   onToggleExtraKniffel: (value: boolean) => void;
   onFill: (category: Category, crossOut: boolean) => void;
+  onManualFill: (category: Category, value: number, crossOut: boolean) => void;
   onOpenModal: (category: Category) => void;
 }) {
   const canAct = manualDiceMode || rollsUsed > 0;
@@ -219,14 +218,30 @@ function CategoryRow({
         }
         if (isCurrent && canAct) {
           if (manualDiceMode) {
+            const fixedValue = fixedScoreForCategory(category);
             return (
               <td key={player.id} className="score-cell actionable">
                 <button
                   type="button"
                   className="enter-btn"
-                  onClick={() => onOpenModal(category)}
+                  onClick={() =>
+                    fixedValue !== null
+                      ? onManualFill(category, fixedValue, false)
+                      : onOpenModal(category)
+                  }
+                  aria-label={`${CATEGORY_LABELS[category]} eintragen`}
+                  title={fixedValue !== null ? `${fixedValue} Punkte eintragen` : "Eintragen"}
                 >
-                  Eintragen
+                  +
+                </button>
+                <button
+                  type="button"
+                  className="cross-btn"
+                  onClick={() => onManualFill(category, 0, true)}
+                  aria-label={`${CATEGORY_LABELS[category]} streichen`}
+                  title="Feld streichen"
+                >
+                  ✕
                 </button>
               </td>
             );
@@ -295,6 +310,7 @@ export function ScoreTable({
     extraKniffelFlag,
     onToggleExtraKniffel,
     onFill,
+    onManualFill,
     onOpenModal: setModalCategory,
   };
 
@@ -384,10 +400,6 @@ export function ScoreTable({
           category={modalCategory}
           onSubmit={(value) => {
             onManualFill(modalCategory, value, false);
-            setModalCategory(null);
-          }}
-          onCrossOut={() => {
-            onManualFill(modalCategory, 0, true);
             setModalCategory(null);
           }}
           onClose={() => setModalCategory(null)}
