@@ -75,13 +75,21 @@ export const BLIND_CATEGORIES: Category[] = [
   "chaos",
 ];
 
-export interface Player {
-  id: string;
-  name: string;
+export interface PlayerColumn {
   scores: Partial<Record<Category, number>>;
   crossedOut: Partial<Record<Category, true>>;
   kniffelBonusCount: number;
 }
+
+export interface Player {
+  id: string;
+  name: string;
+  columns: PlayerColumn[];
+}
+
+export const DEFAULT_COLUMN_COUNT = 1;
+export const MAX_COLUMN_COUNT = 4;
+export const COLUMN_LABELS = ["I", "II", "III", "IV"];
 
 export type GamePhase = "setup" | "playing" | "finished";
 
@@ -94,6 +102,7 @@ export interface GameState {
   categoryOrderMode: CategoryOrderMode;
   blindKniffelMode: boolean;
   jokerRuleMode: boolean;
+  columnCount: number;
   turnNumber: number;
   players: Player[];
   currentPlayerIndex: number;

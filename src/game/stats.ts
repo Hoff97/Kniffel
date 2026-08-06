@@ -7,36 +7,41 @@ import {
   UPPER_CATEGORIES,
   type Category,
   type Player,
+  type PlayerColumn,
 } from "./types";
 
-export function upperSum(player: Player): number {
-  return UPPER_CATEGORIES.reduce((acc, c) => acc + (player.scores[c] ?? 0), 0);
+export function upperSum(column: PlayerColumn): number {
+  return UPPER_CATEGORIES.reduce((acc, c) => acc + (column.scores[c] ?? 0), 0);
 }
 
-export function hasUpperBonus(player: Player): boolean {
-  return upperSum(player) >= UPPER_BONUS_THRESHOLD;
+export function hasUpperBonus(column: PlayerColumn): boolean {
+  return upperSum(column) >= UPPER_BONUS_THRESHOLD;
 }
 
-export function upperBonus(player: Player): number {
-  return hasUpperBonus(player) ? UPPER_BONUS_POINTS : 0;
+export function upperBonus(column: PlayerColumn): number {
+  return hasUpperBonus(column) ? UPPER_BONUS_POINTS : 0;
 }
 
-export function pointsMissingForBonus(player: Player): number {
-  const missing = UPPER_BONUS_THRESHOLD - upperSum(player);
+export function pointsMissingForBonus(column: PlayerColumn): number {
+  const missing = UPPER_BONUS_THRESHOLD - upperSum(column);
   return Math.max(0, missing);
 }
 
-export function lowerSum(player: Player): number {
+export function lowerSum(column: PlayerColumn): number {
   const cats: Category[] = [...LOWER_CATEGORIES, ...EXTENDED_CATEGORIES];
-  return cats.reduce((acc, c) => acc + (player.scores[c] ?? 0), 0);
+  return cats.reduce((acc, c) => acc + (column.scores[c] ?? 0), 0);
 }
 
-export function kniffelBonusTotal(player: Player): number {
-  return player.kniffelBonusCount * KNIFFEL_ADDITIONAL_BONUS;
+export function kniffelBonusTotal(column: PlayerColumn): number {
+  return column.kniffelBonusCount * KNIFFEL_ADDITIONAL_BONUS;
+}
+
+export function columnTotal(column: PlayerColumn): number {
+  return upperSum(column) + upperBonus(column) + lowerSum(column) + kniffelBonusTotal(column);
 }
 
 export function grandTotal(player: Player): number {
-  return upperSum(player) + upperBonus(player) + lowerSum(player) + kniffelBonusTotal(player);
+  return player.columns.reduce((acc, column) => acc + columnTotal(column), 0);
 }
 
 export function activeCategories(extendedMode: boolean): Category[] {
@@ -45,12 +50,16 @@ export function activeCategories(extendedMode: boolean): Category[] {
     : [...UPPER_CATEGORIES, ...LOWER_CATEGORIES];
 }
 
-export function isCategoryOpen(player: Player, category: Category): boolean {
-  return player.scores[category] === undefined && !player.crossedOut[category];
+export function isCategoryOpen(column: PlayerColumn, category: Category): boolean {
+  return column.scores[category] === undefined && !column.crossedOut[category];
+}
+
+export function isColumnDone(column: PlayerColumn, extendedMode: boolean): boolean {
+  return activeCategories(extendedMode).every((c) => !isCategoryOpen(column, c));
 }
 
 export function isPlayerDone(player: Player, extendedMode: boolean): boolean {
-  return activeCategories(extendedMode).every((c) => !isCategoryOpen(player, c));
+  return player.columns.every((column) => isColumnDone(column, extendedMode));
 }
 
 export function isGameFinished(players: Player[], extendedMode: boolean): boolean {

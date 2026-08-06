@@ -14,7 +14,7 @@ import {
   savePausedGame,
   type PausedGame,
 } from "./game/storage";
-import { getTurnAvailability } from "./game/turnRules";
+import { getPlayerAvailability } from "./game/turnRules";
 import { MAX_ROLLS, type Category } from "./game/types";
 
 function init() {
@@ -89,12 +89,24 @@ export default function App() {
     window.setTimeout(() => setRolling(false), 350);
   };
 
-  const handleFill = (category: Category, crossOut: boolean) => {
-    dispatch({ type: "FILL_CATEGORY", category, crossOut });
+  const handleFill = (columnIndex: number, category: Category, crossOut: boolean) => {
+    dispatch({ type: "FILL_CATEGORY", columnIndex, category, crossOut });
   };
 
-  const handleManualFill = (category: Category, value: number, crossOut: boolean) => {
-    dispatch({ type: "MANUAL_SUBMIT", category, value, crossOut, extraKniffel: extraKniffelFlag });
+  const handleManualFill = (
+    columnIndex: number,
+    category: Category,
+    value: number,
+    crossOut: boolean,
+  ) => {
+    dispatch({
+      type: "MANUAL_SUBMIT",
+      columnIndex,
+      category,
+      value,
+      crossOut,
+      extraKniffel: extraKniffelFlag,
+    });
     setExtraKniffelFlag(false);
   };
 
@@ -124,6 +136,7 @@ export default function App() {
           categoryOrderMode,
           blindKniffelMode,
           jokerRuleMode,
+          columnCount,
         ) =>
           dispatch({
             type: "START_GAME",
@@ -135,6 +148,7 @@ export default function App() {
             categoryOrderMode,
             blindKniffelMode,
             jokerRuleMode,
+            columnCount,
           })
         }
         onResume={handleResume}
@@ -155,7 +169,7 @@ export default function App() {
     ? timeGateOpen && (!state.timeAttackMode || roundEndedManually)
     : timeGateOpen && state.rollsUsed > 0;
 
-  const turnAvailability = getTurnAvailability(
+  const availabilities = getPlayerAvailability(
     currentPlayer,
     state.dice,
     state.extendedMode,
@@ -163,6 +177,7 @@ export default function App() {
     state.categoryOrderMode,
     state.jokerRuleMode,
   );
+  const jokerActive = availabilities.some((a) => a.jokerActive);
 
   return (
     <div className="app-shell">
@@ -176,7 +191,7 @@ export default function App() {
         </div>
       )}
 
-      {turnAvailability.jokerActive && (
+      {jokerActive && (
         <div className="joker-toast" role="status">
           🃏 Joker! Dieser Kniffel muss in ein markiertes Feld eingetragen werden.
         </div>
@@ -230,14 +245,14 @@ export default function App() {
       <ScoreTable
         players={state.players}
         currentPlayerIndex={state.currentPlayerIndex}
+        columnCount={state.columnCount}
         dice={state.dice}
         canScore={canScore}
         rollsUsed={state.rollsUsed}
         extendedMode={state.extendedMode}
         manualDiceMode={state.manualDiceMode}
         blindKniffelMode={state.blindKniffelMode}
-        reachableCategories={turnAvailability.reachable}
-        jokerActive={turnAvailability.jokerActive}
+        availabilities={availabilities}
         extraKniffelFlag={extraKniffelFlag}
         onToggleExtraKniffel={setExtraKniffelFlag}
         onFill={handleFill}

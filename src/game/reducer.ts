@@ -1,7 +1,8 @@
 import { clampScore, computeScore, isKniffel, maxScoreForCategory, rollDie } from "./scoring";
-import { isGameFinished } from "./stats";
-import { canScoreBlindCategory, getJokerScore, getTurnAvailability } from "./turnRules";
+import { isCategoryOpen, isGameFinished } from "./stats";
+import { canScoreBlindCategory, getColumnAvailability, getJokerScore, getPlayerAvailability } from "./turnRules";
 import {
+  DEFAULT_COLUMN_COUNT,
   DEFAULT_TIME_ATTACK_SECONDS,
   DICE_COUNT,
   KNIFFEL_FIRST_SCORE,
@@ -10,6 +11,7 @@ import {
   type CategoryOrderMode,
   type GameState,
   type Player,
+  type PlayerColumn,
 } from "./types";
 
 export type GameAction =
@@ -23,11 +25,19 @@ export type GameAction =
       categoryOrderMode: CategoryOrderMode;
       blindKniffelMode: boolean;
       jokerRuleMode: boolean;
+      columnCount: number;
     }
   | { type: "ROLL" }
   | { type: "TOGGLE_HOLD"; index: number }
-  | { type: "FILL_CATEGORY"; category: Category; crossOut: boolean }
-  | { type: "MANUAL_SUBMIT"; category: Category; value: number; crossOut: boolean; extraKniffel: boolean }
+  | { type: "FILL_CATEGORY"; columnIndex: number; category: Category; crossOut: boolean }
+  | {
+      type: "MANUAL_SUBMIT";
+      columnIndex: number;
+      category: Category;
+      value: number;
+      crossOut: boolean;
+      extraKniffel: boolean;
+    }
   | { type: "TIME_OUT" }
   | { type: "PAUSE_GAME" }
   | { type: "RESUME_GAME"; state: GameState }
@@ -43,6 +53,7 @@ export const initialState: GameState = {
   categoryOrderMode: "free",
   blindKniffelMode: false,
   jokerRuleMode: false,
+  columnCount: DEFAULT_COLUMN_COUNT,
   turnNumber: 0,
   players: [],
   currentPlayerIndex: 0,
@@ -52,12 +63,26 @@ export const initialState: GameState = {
   lastKniffelBonus: false,
 };
 
-function makePlayer(name: string, id: string): Player {
-  return { id, name, scores: {}, crossedOut: {}, kniffelBonusCount: 0 };
+function makeColumn(): PlayerColumn {
+  return { scores: {}, crossedOut: {}, kniffelBonusCount: 0 };
 }
 
-function isCategoryFilled(player: Player, category: Category): boolean {
-  return player.scores[category] !== undefined || !!player.crossedOut[category];
+function makePlayer(name: string, id: string, columnCount: number): Player {
+  return { id, name, columns: Array.from({ length: columnCount }, makeColumn) };
+}
+
+function isCategoryFilled(column: PlayerColumn, category: Category): boolean {
+  return column.scores[category] !== undefined || !!column.crossedOut[category];
+}
+
+function updatePlayerColumn(
+  player: Player,
+  columnIndex: number,
+  update: (column: PlayerColumn) => PlayerColumn,
+): Player {
+  const columns = player.columns.slice();
+  columns[columnIndex] = update(columns[columnIndex]);
+  return { ...player, columns };
 }
 
 function applyTurnResult(state: GameState, players: Player[], grantsBonus: boolean): GameState {
@@ -86,7 +111,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       const players = action.names
         .map((n) => n.trim())
         .filter((n) => n.length > 0)
-        .map((n, i) => makePlayer(n, `${Date.now()}-${i}`));
+        .map((n, i) => makePlayer(n, `${Date.now()}-${i}`, action.columnCount));
       if (players.length === 0) return state;
       return {
         ...initialState,
@@ -98,6 +123,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         categoryOrderMode: action.categoryOrderMode,
         blindKniffelMode: action.blindKniffelMode,
         jokerRuleMode: action.jokerRuleMode,
+        columnCount: action.columnCount,
         players,
         currentPlayerIndex: 0,
       };
@@ -126,10 +152,11 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       if (state.rollsUsed === 0) return state;
 
       const player = state.players[state.currentPlayerIndex];
-      if (isCategoryFilled(player, action.category)) return state;
+      const column = player.columns[action.columnIndex];
+      if (!column || isCategoryFilled(column, action.category)) return state;
 
-      const availability = getTurnAvailability(
-        player,
+      const availability = getColumnAvailability(
+        column,
         state.dice,
         state.extendedMode,
         false,
@@ -145,26 +172,25 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       }
 
       const rolledKniffel = isKniffel(state.dice);
-      const hadKniffelBefore = player.scores.kniffel === KNIFFEL_FIRST_SCORE;
+      const hadKniffelBefore = column.scores.kniffel === KNIFFEL_FIRST_SCORE;
       const grantsBonus = rolledKniffel && hadKniffelBefore;
 
-      const updatedPlayer: Player = {
-        ...player,
-        scores: { ...player.scores },
-        crossedOut: { ...player.crossedOut },
-      };
-
-      if (action.crossOut) {
-        updatedPlayer.crossedOut[action.category] = true;
-      } else {
-        updatedPlayer.scores[action.category] = availability.jokerActive
-          ? getJokerScore(action.category, state.dice)
-          : computeScore(action.category, state.dice);
-      }
-
-      if (grantsBonus) {
-        updatedPlayer.kniffelBonusCount += 1;
-      }
+      const updatedPlayer = updatePlayerColumn(player, action.columnIndex, (col) => {
+        const scores = { ...col.scores };
+        const crossedOut = { ...col.crossedOut };
+        if (action.crossOut) {
+          crossedOut[action.category] = true;
+        } else {
+          scores[action.category] = availability.jokerActive
+            ? getJokerScore(action.category, state.dice)
+            : computeScore(action.category, state.dice);
+        }
+        return {
+          scores,
+          crossedOut,
+          kniffelBonusCount: col.kniffelBonusCount + (grantsBonus ? 1 : 0),
+        };
+      });
 
       const players = state.players.slice();
       players[state.currentPlayerIndex] = updatedPlayer;
@@ -177,10 +203,11 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       if (!state.manualDiceMode) return state;
 
       const player = state.players[state.currentPlayerIndex];
-      if (isCategoryFilled(player, action.category)) return state;
+      const column = player.columns[action.columnIndex];
+      if (!column || isCategoryFilled(column, action.category)) return state;
 
-      const availability = getTurnAvailability(
-        player,
+      const availability = getColumnAvailability(
+        column,
         state.dice,
         state.extendedMode,
         true,
@@ -189,25 +216,24 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       );
       if (!availability.reachable.includes(action.category)) return state;
 
-      const hadKniffelBefore = player.scores.kniffel === KNIFFEL_FIRST_SCORE;
+      const hadKniffelBefore = column.scores.kniffel === KNIFFEL_FIRST_SCORE;
       const grantsBonus = action.extraKniffel && hadKniffelBefore;
 
-      const updatedPlayer: Player = {
-        ...player,
-        scores: { ...player.scores },
-        crossedOut: { ...player.crossedOut },
-      };
-
-      if (action.crossOut) {
-        updatedPlayer.crossedOut[action.category] = true;
-      } else {
-        const max = maxScoreForCategory(action.category);
-        updatedPlayer.scores[action.category] = clampScore(action.value, max);
-      }
-
-      if (grantsBonus) {
-        updatedPlayer.kniffelBonusCount += 1;
-      }
+      const updatedPlayer = updatePlayerColumn(player, action.columnIndex, (col) => {
+        const scores = { ...col.scores };
+        const crossedOut = { ...col.crossedOut };
+        if (action.crossOut) {
+          crossedOut[action.category] = true;
+        } else {
+          const max = maxScoreForCategory(action.category);
+          scores[action.category] = clampScore(action.value, max);
+        }
+        return {
+          scores,
+          crossedOut,
+          kniffelBonusCount: col.kniffelBonusCount + (grantsBonus ? 1 : 0),
+        };
+      });
 
       const players = state.players.slice();
       players[state.currentPlayerIndex] = updatedPlayer;
@@ -219,7 +245,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       if (state.phase !== "playing") return state;
 
       const player = state.players[state.currentPlayerIndex];
-      const availability = getTurnAvailability(
+      const availabilities = getPlayerAvailability(
         player,
         state.dice,
         state.extendedMode,
@@ -227,14 +253,21 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         state.categoryOrderMode,
         state.jokerRuleMode,
       );
-      const openCategories = availability.reachable.filter((c) => !isCategoryFilled(player, c));
-      if (openCategories.length === 0) return state;
 
-      const randomCategory = openCategories[Math.floor(Math.random() * openCategories.length)];
-      const updatedPlayer: Player = {
-        ...player,
-        crossedOut: { ...player.crossedOut, [randomCategory]: true },
-      };
+      const openTargets: { columnIndex: number; category: Category }[] = [];
+      availabilities.forEach((availability, columnIndex) => {
+        const column = player.columns[columnIndex];
+        availability.reachable
+          .filter((c) => isCategoryOpen(column, c))
+          .forEach((category) => openTargets.push({ columnIndex, category }));
+      });
+      if (openTargets.length === 0) return state;
+
+      const target = openTargets[Math.floor(Math.random() * openTargets.length)];
+      const updatedPlayer = updatePlayerColumn(player, target.columnIndex, (col) => ({
+        ...col,
+        crossedOut: { ...col.crossedOut, [target.category]: true },
+      }));
 
       const players = state.players.slice();
       players[state.currentPlayerIndex] = updatedPlayer;

@@ -6,6 +6,7 @@ import {
   UPPER_FACE_VALUES,
 } from "../game/scoring";
 import {
+  columnTotal,
   hasUpperBonus,
   kniffelBonusTotal,
   lowerSum,
@@ -13,10 +14,11 @@ import {
   upperBonus,
   upperSum,
 } from "../game/stats";
-import { canScoreBlindCategory, getJokerScore } from "../game/turnRules";
+import { canScoreBlindCategory, getJokerScore, type TurnAvailability } from "../game/turnRules";
 import {
   CATEGORY_HINTS,
   CATEGORY_LABELS,
+  COLUMN_LABELS,
   DICE_COUNT,
   EXTENDED_CATEGORIES,
   KNIFFEL_FIRST_SCORE,
@@ -25,6 +27,7 @@ import {
   UPPER_CATEGORIES,
   type Category,
   type Player,
+  type PlayerColumn,
   type UpperCategory,
 } from "../game/types";
 import { Modal } from "./Modal";
@@ -32,18 +35,23 @@ import { Modal } from "./Modal";
 interface ScoreTableProps {
   players: Player[];
   currentPlayerIndex: number;
+  columnCount: number;
   dice: number[];
   canScore: boolean;
   rollsUsed: number;
   extendedMode: boolean;
   manualDiceMode: boolean;
   blindKniffelMode: boolean;
-  reachableCategories: Category[];
-  jokerActive: boolean;
+  availabilities: TurnAvailability[];
   extraKniffelFlag: boolean;
   onToggleExtraKniffel: (value: boolean) => void;
-  onFill: (category: Category, crossOut: boolean) => void;
-  onManualFill: (category: Category, value: number, crossOut: boolean) => void;
+  onFill: (columnIndex: number, category: Category, crossOut: boolean) => void;
+  onManualFill: (
+    columnIndex: number,
+    category: Category,
+    value: number,
+    crossOut: boolean,
+  ) => void;
 }
 
 function isUpperCategory(category: Category): category is UpperCategory {
@@ -130,26 +138,172 @@ function KniffelBonusToggle({
 }) {
   return (
     <td className="score-cell kniffel-filled-cell">
-      <span className="filled-value">{KNIFFEL_FIRST_SCORE}</span>
-      <button
-        type="button"
-        className={`kniffel-bonus-btn${active ? " kniffel-bonus-active" : ""}`}
-        onClick={() => onToggle(!active)}
-        title="Weiterer Kniffel: +100 Punkte & Extra-Runde"
-      >
-        + Kniffel?
-      </button>
+      <div className="cell-inner">
+        <span className="filled-value">{KNIFFEL_FIRST_SCORE}</span>
+        <button
+          type="button"
+          className={`kniffel-bonus-btn${active ? " kniffel-bonus-active" : ""}`}
+          onClick={() => onToggle(!active)}
+          title="Weiterer Kniffel: +100 Punkte & Extra-Runde"
+        >
+          + Kniffel?
+        </button>
+      </div>
     </td>
   );
 }
 
-function SectionRow({ label, playerCount }: { label: string; playerCount: number }) {
+interface ColumnCellProps {
+  category: Category;
+  column: PlayerColumn;
+  isCurrentPlayerColumn: boolean;
+  canScore: boolean;
+  rollsUsed: number;
+  dice: number[];
+  manualDiceMode: boolean;
+  blindKniffelMode: boolean;
+  availability: TurnAvailability | undefined;
+  extraKniffelFlag: boolean;
+  onToggleExtraKniffel: (value: boolean) => void;
+  onFill: (crossOut: boolean) => void;
+  onManualFill: (value: number, crossOut: boolean) => void;
+  onOpenModal: () => void;
+}
+
+function ColumnCell({
+  category,
+  column,
+  isCurrentPlayerColumn,
+  canScore,
+  rollsUsed,
+  dice,
+  manualDiceMode,
+  blindKniffelMode,
+  availability,
+  extraKniffelFlag,
+  onToggleExtraKniffel,
+  onFill,
+  onManualFill,
+  onOpenModal,
+}: ColumnCellProps) {
+  const filled = column.scores[category];
+  const crossed = column.crossedOut[category];
+
+  if (manualDiceMode && isCurrentPlayerColumn && category === "kniffel" && filled === KNIFFEL_FIRST_SCORE) {
+    return <KniffelBonusToggle active={extraKniffelFlag} onToggle={onToggleExtraKniffel} />;
+  }
+
+  if (filled !== undefined) {
+    return <td className="score-cell filled">{filled}</td>;
+  }
+  if (crossed) {
+    return (
+      <td className="score-cell crossed" aria-label="gestrichen">
+        ✕
+      </td>
+    );
+  }
+
+  const reachable = isCurrentPlayerColumn && (availability?.reachable.includes(category) ?? false);
+
+  if (isCurrentPlayerColumn && canScore && reachable) {
+    const jokerActive = availability?.jokerActive ?? false;
+    const blindLocked =
+      !jokerActive && !canScoreBlindCategory(category, rollsUsed, manualDiceMode, blindKniffelMode);
+
+    if (blindLocked) {
+      return (
+        <td className="score-cell actionable blind-locked">
+          <div className="cell-inner">
+            <span className="blind-lock-hint" title="Zählt nur beim ersten Wurf">
+              🔒 1. Wurf
+            </span>
+            <button
+              type="button"
+              className="cross-btn"
+              onClick={() => (manualDiceMode ? onManualFill(0, true) : onFill(true))}
+              aria-label={`${CATEGORY_LABELS[category]} streichen`}
+              title="Feld streichen"
+            >
+              ✕
+            </button>
+          </div>
+        </td>
+      );
+    }
+
+    if (manualDiceMode) {
+      const fixedValue = fixedScoreForCategory(category);
+      return (
+        <td className="score-cell actionable">
+          <div className="cell-inner">
+            <button
+              type="button"
+              className="enter-btn"
+              onClick={() =>
+                fixedValue !== null ? onManualFill(fixedValue, false) : onOpenModal()
+              }
+              aria-label={`${CATEGORY_LABELS[category]} eintragen`}
+              title={fixedValue !== null ? `${fixedValue} Punkte eintragen` : "Eintragen"}
+            >
+              +
+            </button>
+            <button
+              type="button"
+              className="cross-btn"
+              onClick={() => onManualFill(0, true)}
+              aria-label={`${CATEGORY_LABELS[category]} streichen`}
+              title="Feld streichen"
+            >
+              ✕
+            </button>
+          </div>
+        </td>
+      );
+    }
+    const preview = jokerActive ? getJokerScore(category, dice) : computeScore(category, dice);
+    return (
+      <td className="score-cell actionable">
+        <div className="cell-inner">
+          <button
+            type="button"
+            className={`score-btn${preview > 0 ? " score-btn-positive" : ""}`}
+            onClick={() => onFill(false)}
+          >
+            {preview}
+          </button>
+          <button
+            type="button"
+            className="cross-btn"
+            onClick={() => onFill(true)}
+            aria-label={`${CATEGORY_LABELS[category]} streichen`}
+            title="Feld streichen"
+          >
+            ✕
+          </button>
+        </div>
+      </td>
+    );
+  }
+
+  if (isCurrentPlayerColumn && canScore && !reachable) {
+    return (
+      <td className="score-cell locked" title="Gerade nicht wählbar" aria-label="Gerade nicht wählbar">
+        🔒
+      </td>
+    );
+  }
+
+  return <td className="score-cell empty">–</td>;
+}
+
+function SectionRow({ label, totalDataColumns }: { label: string; totalDataColumns: number }) {
   return (
     <tr className="section-row">
       <th scope="row" className="cat-cell">
         {label}
       </th>
-      {Array.from({ length: playerCount }, (_, i) => (
+      {Array.from({ length: totalDataColumns }, (_, i) => (
         <td key={i} />
       ))}
     </tr>
@@ -160,13 +314,13 @@ function CategoryRow({
   category,
   players,
   currentPlayerIndex,
+  columnCount,
   dice,
   canScore,
   rollsUsed,
   manualDiceMode,
   blindKniffelMode,
-  reachableCategories,
-  jokerActive,
+  availabilities,
   extraKniffelFlag,
   onToggleExtraKniffel,
   onFill,
@@ -176,162 +330,62 @@ function CategoryRow({
   category: Category;
   players: Player[];
   currentPlayerIndex: number;
+  columnCount: number;
   dice: number[];
   canScore: boolean;
   rollsUsed: number;
   manualDiceMode: boolean;
   blindKniffelMode: boolean;
-  reachableCategories: Category[];
-  jokerActive: boolean;
+  availabilities: TurnAvailability[];
   extraKniffelFlag: boolean;
   onToggleExtraKniffel: (value: boolean) => void;
-  onFill: (category: Category, crossOut: boolean) => void;
-  onManualFill: (category: Category, value: number, crossOut: boolean) => void;
-  onOpenModal: (category: Category) => void;
+  onFill: (columnIndex: number, category: Category, crossOut: boolean) => void;
+  onManualFill: (
+    columnIndex: number,
+    category: Category,
+    value: number,
+    crossOut: boolean,
+  ) => void;
+  onOpenModal: (columnIndex: number, category: Category) => void;
 }) {
+  const currentPlayerHasJokerHere = availabilities.some(
+    (a) => a.jokerActive && a.reachable.includes(category),
+  );
+
   return (
     <tr>
       <th scope="row" className="cat-cell" title={CATEGORY_HINTS[category]}>
         {CATEGORY_LABELS[category]}
-        {jokerActive && reachableCategories.includes(category) && (
+        {currentPlayerHasJokerHere && (
           <span className="joker-marker" title="Joker-Feld">
             🃏
           </span>
         )}
       </th>
-      {players.map((player, i) => {
-        const isCurrent = i === currentPlayerIndex;
-        const filled = player.scores[category];
-        const crossed = player.crossedOut[category];
-
-        if (
-          manualDiceMode &&
-          isCurrent &&
-          category === "kniffel" &&
-          filled === KNIFFEL_FIRST_SCORE
-        ) {
-          return (
-            <KniffelBonusToggle
-              key={player.id}
-              active={extraKniffelFlag}
-              onToggle={onToggleExtraKniffel}
-            />
-          );
-        }
-
-        if (filled !== undefined) {
-          return (
-            <td key={player.id} className="score-cell filled">
-              {filled}
-            </td>
-          );
-        }
-        if (crossed) {
-          return (
-            <td key={player.id} className="score-cell crossed" aria-label="gestrichen">
-              ✕
-            </td>
-          );
-        }
-
-        const reachable = reachableCategories.includes(category);
-
-        if (isCurrent && canScore && reachable) {
-          const blindLocked =
-            !jokerActive && !canScoreBlindCategory(category, rollsUsed, manualDiceMode, blindKniffelMode);
-
-          if (blindLocked) {
-            return (
-              <td key={player.id} className="score-cell actionable blind-locked">
-                <span className="blind-lock-hint" title="Zählt nur beim ersten Wurf">
-                  🔒 1. Wurf
-                </span>
-                <button
-                  type="button"
-                  className="cross-btn"
-                  onClick={() =>
-                    manualDiceMode ? onManualFill(category, 0, true) : onFill(category, true)
-                  }
-                  aria-label={`${CATEGORY_LABELS[category]} streichen`}
-                  title="Feld streichen"
-                >
-                  ✕
-                </button>
-              </td>
-            );
-          }
-
-          if (manualDiceMode) {
-            const fixedValue = fixedScoreForCategory(category);
-            return (
-              <td key={player.id} className="score-cell actionable">
-                <button
-                  type="button"
-                  className="enter-btn"
-                  onClick={() =>
-                    fixedValue !== null
-                      ? onManualFill(category, fixedValue, false)
-                      : onOpenModal(category)
-                  }
-                  aria-label={`${CATEGORY_LABELS[category]} eintragen`}
-                  title={fixedValue !== null ? `${fixedValue} Punkte eintragen` : "Eintragen"}
-                >
-                  +
-                </button>
-                <button
-                  type="button"
-                  className="cross-btn"
-                  onClick={() => onManualFill(category, 0, true)}
-                  aria-label={`${CATEGORY_LABELS[category]} streichen`}
-                  title="Feld streichen"
-                >
-                  ✕
-                </button>
-              </td>
-            );
-          }
-          const preview = jokerActive ? getJokerScore(category, dice) : computeScore(category, dice);
-          return (
-            <td key={player.id} className="score-cell actionable">
-              <button
-                type="button"
-                className={`score-btn${preview > 0 ? " score-btn-positive" : ""}`}
-                onClick={() => onFill(category, false)}
-              >
-                {preview}
-              </button>
-              <button
-                type="button"
-                className="cross-btn"
-                onClick={() => onFill(category, true)}
-                aria-label={`${CATEGORY_LABELS[category]} streichen`}
-                title="Feld streichen"
-              >
-                ✕
-              </button>
-            </td>
-          );
-        }
-
-        if (isCurrent && canScore && !reachable) {
-          return (
-            <td
-              key={player.id}
-              className="score-cell locked"
-              title="Gerade nicht wählbar"
-              aria-label="Gerade nicht wählbar"
-            >
-              🔒
-            </td>
-          );
-        }
-
-        return (
-          <td key={player.id} className="score-cell empty">
-            –
-          </td>
-        );
-      })}
+      {players.flatMap((player, playerIndex) => [
+        ...player.columns.map((column, columnIndex) => (
+          <ColumnCell
+            key={`${player.id}-${columnIndex}`}
+            category={category}
+            column={column}
+            isCurrentPlayerColumn={playerIndex === currentPlayerIndex}
+            canScore={canScore}
+            rollsUsed={rollsUsed}
+            dice={dice}
+            manualDiceMode={manualDiceMode}
+            blindKniffelMode={blindKniffelMode}
+            availability={playerIndex === currentPlayerIndex ? availabilities[columnIndex] : undefined}
+            extraKniffelFlag={extraKniffelFlag}
+            onToggleExtraKniffel={onToggleExtraKniffel}
+            onFill={(crossOut) => onFill(columnIndex, category, crossOut)}
+            onManualFill={(value, crossOut) => onManualFill(columnIndex, category, value, crossOut)}
+            onOpenModal={() => onOpenModal(columnIndex, category)}
+          />
+        )),
+        ...(columnCount > 1
+          ? [<td key={`${player.id}-sigma`} className="score-cell sigma-spacer" />]
+          : []),
+      ])}
     </tr>
   );
 }
@@ -339,20 +393,22 @@ function CategoryRow({
 export function ScoreTable({
   players,
   currentPlayerIndex,
+  columnCount,
   dice,
   canScore,
   rollsUsed,
   extendedMode,
   manualDiceMode,
   blindKniffelMode,
-  reachableCategories,
-  jokerActive,
+  availabilities,
   extraKniffelFlag,
   onToggleExtraKniffel,
   onFill,
   onManualFill,
 }: ScoreTableProps) {
-  const [modalCategory, setModalCategory] = useState<Category | null>(null);
+  const [modalTarget, setModalTarget] = useState<{ columnIndex: number; category: Category } | null>(
+    null,
+  );
   const activeHeaderRef = useRef<HTMLTableCellElement | null>(null);
 
   useEffect(() => {
@@ -363,112 +419,156 @@ export function ScoreTable({
     });
   }, [currentPlayerIndex]);
 
+  const multiColumn = columnCount > 1;
+  const totalDataColumns = players.length * (columnCount + (multiColumn ? 1 : 0));
+
   const rowProps = {
     players,
     currentPlayerIndex,
+    columnCount,
     dice,
     canScore,
     rollsUsed,
     manualDiceMode,
     blindKniffelMode,
-    reachableCategories,
-    jokerActive,
+    availabilities,
     extraKniffelFlag,
     onToggleExtraKniffel,
     onFill,
     onManualFill,
-    onOpenModal: setModalCategory,
+    onOpenModal: (columnIndex: number, category: Category) => setModalTarget({ columnIndex, category }),
   };
+
+  function metricRow(
+    label: string,
+    getValue: (column: PlayerColumn) => number,
+    format: (v: number) => string = (v) => String(v),
+  ) {
+    return (
+      <tr className="subtotal-row">
+        <th scope="row" className="cat-cell">
+          {label}
+        </th>
+        {players.flatMap((p) => [
+          ...p.columns.map((c, ci) => <td key={`${p.id}-${ci}`}>{format(getValue(c))}</td>),
+          ...(multiColumn
+            ? [
+                <td key={`${p.id}-sigma`} className="sigma-cell">
+                  {format(p.columns.reduce((acc, c) => acc + getValue(c), 0))}
+                </td>,
+              ]
+            : []),
+        ])}
+      </tr>
+    );
+  }
 
   return (
     <div className="score-table-wrap">
       <table className="score-table">
         <thead>
+          {multiColumn && (
+            <tr>
+              <th scope="col" className="cat-cell cat-header" />
+              {players.map((p, i) => (
+                <th
+                  scope="col"
+                  key={p.id}
+                  colSpan={columnCount + 1}
+                  className={`player-group-header${i === currentPlayerIndex ? " active-player" : ""}`}
+                >
+                  {p.name}
+                </th>
+              ))}
+            </tr>
+          )}
           <tr>
             <th scope="col" className="cat-cell cat-header">
               Kategorie
             </th>
-            {players.map((p, i) => (
-              <th
-                scope="col"
-                key={p.id}
-                ref={i === currentPlayerIndex ? activeHeaderRef : undefined}
-                className={`player-header${i === currentPlayerIndex ? " active-player" : ""}`}
-              >
-                {p.name}
-              </th>
-            ))}
+            {players.flatMap((p, i) => [
+              ...p.columns.map((_, ci) => (
+                <th
+                  scope="col"
+                  key={`${p.id}-${ci}`}
+                  ref={i === currentPlayerIndex && ci === 0 ? activeHeaderRef : undefined}
+                  className={`player-header${i === currentPlayerIndex ? " active-player" : ""}`}
+                >
+                  {multiColumn ? COLUMN_LABELS[ci] : p.name}
+                </th>
+              )),
+              ...(multiColumn
+                ? [
+                    <th
+                      scope="col"
+                      key={`${p.id}-sigma`}
+                      className={`player-header sigma-header${i === currentPlayerIndex ? " active-player" : ""}`}
+                    >
+                      Σ
+                    </th>,
+                  ]
+                : []),
+            ])}
           </tr>
         </thead>
         <tbody>
-          <SectionRow label="Oben" playerCount={players.length} />
+          <SectionRow label="Oben" totalDataColumns={totalDataColumns} />
           {UPPER_CATEGORIES.map((c) => (
             <CategoryRow key={c} category={c} {...rowProps} />
           ))}
-          <tr className="subtotal-row">
-            <th scope="row" className="cat-cell">
-              Summe oben
-            </th>
-            {players.map((p) => (
-              <td key={p.id}>{upperSum(p)}</td>
-            ))}
-          </tr>
+          {metricRow("Summe oben", upperSum)}
           <tr className="bonus-row">
-            <th scope="row" className="cat-cell" title={`Bonus ab 63 Punkten`}>
+            <th scope="row" className="cat-cell" title="Bonus ab 63 Punkten">
               Bonus ({UPPER_BONUS_POINTS})
             </th>
-            {players.map((p) => (
-              <td key={p.id} className={hasUpperBonus(p) ? "bonus-hit" : ""}>
-                {hasUpperBonus(p) ? (
-                  `+${upperBonus(p)}`
-                ) : (
-                  <span className="bonus-missing">noch {pointsMissingForBonus(p)}</span>
-                )}
-              </td>
-            ))}
+            {players.flatMap((p) => [
+              ...p.columns.map((c, ci) => (
+                <td key={`${p.id}-${ci}`} className={hasUpperBonus(c) ? "bonus-hit" : ""}>
+                  {hasUpperBonus(c) ? (
+                    `+${upperBonus(c)}`
+                  ) : (
+                    <span className="bonus-missing">noch {pointsMissingForBonus(c)}</span>
+                  )}
+                </td>
+              )),
+              ...(multiColumn
+                ? [
+                    <td key={`${p.id}-sigma`} className="sigma-cell">
+                      +{p.columns.reduce((acc, c) => acc + upperBonus(c), 0)}
+                    </td>,
+                  ]
+                : []),
+            ])}
           </tr>
 
-          <SectionRow label="Unten" playerCount={players.length} />
+          <SectionRow label="Unten" totalDataColumns={totalDataColumns} />
           {LOWER_CATEGORIES.map((c) => (
             <CategoryRow key={c} category={c} {...rowProps} />
           ))}
 
           {extendedMode && (
             <>
-              <SectionRow label="Erweitert" playerCount={players.length} />
+              <SectionRow label="Erweitert" totalDataColumns={totalDataColumns} />
               {EXTENDED_CATEGORIES.map((c) => (
                 <CategoryRow key={c} category={c} {...rowProps} />
               ))}
             </>
           )}
 
-          <tr className="subtotal-row">
-            <th scope="row" className="cat-cell">
-              Summe unten
-            </th>
-            {players.map((p) => (
-              <td key={p.id}>{lowerSum(p)}</td>
-            ))}
-          </tr>
-          <tr className="subtotal-row">
-            <th scope="row" className="cat-cell">
-              Kniffel-Bonus
-            </th>
-            {players.map((p) => (
-              <td key={p.id}>{kniffelBonusTotal(p) > 0 ? `+${kniffelBonusTotal(p)}` : "–"}</td>
-            ))}
-          </tr>
+          {metricRow("Summe unten", lowerSum)}
+          {metricRow("Kniffel-Bonus", kniffelBonusTotal, (v) => (v > 0 ? `+${v}` : "–"))}
+          {multiColumn && metricRow("Gesamt", columnTotal)}
         </tbody>
       </table>
 
-      {modalCategory && (
+      {modalTarget && (
         <ManualEntryModal
-          category={modalCategory}
+          category={modalTarget.category}
           onSubmit={(value) => {
-            onManualFill(modalCategory, value, false);
-            setModalCategory(null);
+            onManualFill(modalTarget.columnIndex, modalTarget.category, value, false);
+            setModalTarget(null);
           }}
-          onClose={() => setModalCategory(null)}
+          onClose={() => setModalTarget(null)}
         />
       )}
     </div>

@@ -3,7 +3,9 @@ import { listPausedGames, removePausedGame, type PausedGame } from "../game/stor
 import { grandTotal } from "../game/stats";
 import {
   CATEGORY_ORDER_LABELS,
+  DEFAULT_COLUMN_COUNT,
   DEFAULT_TIME_ATTACK_SECONDS,
+  MAX_COLUMN_COUNT,
   MAX_TIME_ATTACK_SECONDS,
   MIN_TIME_ATTACK_SECONDS,
   type CategoryOrderMode,
@@ -27,6 +29,7 @@ interface SetupProps {
     categoryOrderMode: CategoryOrderMode,
     blindKniffelMode: boolean,
     jokerRuleMode: boolean,
+    columnCount: number,
   ) => void;
   onResume: (pausedGame: PausedGame) => void;
 }
@@ -76,6 +79,7 @@ function PausedGamesList({
             g.state.categoryOrderMode !== "free" && CATEGORY_ORDER_LABELS[g.state.categoryOrderMode],
             g.state.blindKniffelMode && "Blind-Kniffel",
             g.state.jokerRuleMode && "Joker-Regel",
+            g.state.columnCount > 1 && `${g.state.columnCount} Spalten`,
           ].filter(Boolean) as string[];
           const leader = g.state.players
             .slice()
@@ -130,6 +134,7 @@ export function Setup({ onStart, onResume }: SetupProps) {
   const [categoryOrderMode, setCategoryOrderMode] = useState<CategoryOrderMode>("free");
   const [blindKniffelMode, setBlindKniffelMode] = useState(false);
   const [jokerRuleMode, setJokerRuleMode] = useState(false);
+  const [columnCount, setColumnCount] = useState(DEFAULT_COLUMN_COUNT);
 
   const updateName = (index: number, value: string) => {
     setNames((prev) => prev.map((n, i) => (i === index ? value : n)));
@@ -165,6 +170,7 @@ export function Setup({ onStart, onResume }: SetupProps) {
       categoryOrderMode,
       blindKniffelMode,
       jokerRuleMode,
+      columnCount,
     );
   };
 
@@ -321,6 +327,27 @@ export function Setup({ onStart, onResume }: SetupProps) {
             />
             <span className="switch" />
           </label>
+
+          <div className="column-count-picker">
+            <div>
+              <div className="toggle-title">Spalten pro Spieler</div>
+              <div className="toggle-desc">
+                Mehrere unabhängige Spalten gleichzeitig füllen, Gesamtpunktzahl zählt zusammen
+              </div>
+            </div>
+            <div className="column-count-buttons">
+              {Array.from({ length: MAX_COLUMN_COUNT }, (_, i) => i + 1).map((count) => (
+                <button
+                  key={count}
+                  type="button"
+                  className={`column-count-btn${count === columnCount ? " column-count-active" : ""}`}
+                  onClick={() => setColumnCount(count)}
+                >
+                  {count}
+                </button>
+              ))}
+            </div>
+          </div>
 
           <button type="submit" className="primary-btn start-btn" disabled={!canStart}>
             Spiel starten

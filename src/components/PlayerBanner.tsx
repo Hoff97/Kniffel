@@ -23,7 +23,8 @@ export function PlayerBanner({
   onPause,
 }: PlayerBannerProps) {
   const rollsLeft = MAX_ROLLS - rollsUsed;
-  const missing = pointsMissingForBonus(player);
+  const singleColumn = player.columns.length === 1;
+  const missing = singleColumn ? pointsMissingForBonus(player.columns[0]) : 0;
 
   let hint: string;
   if (timeAttackMode && !roundStarted) {
@@ -49,9 +50,11 @@ export function PlayerBanner({
         <h2>{player.name}</h2>
         <div className="player-banner-stats">
           <span className="stat-pill">Punkte: {grandTotal(player)}</span>
-          <span className="stat-pill">
-            {missing > 0 ? `Bonus in ${missing} Pkt.` : "Bonus erreicht ✓"}
-          </span>
+          {singleColumn && (
+            <span className="stat-pill">
+              {missing > 0 ? `Bonus in ${missing} Pkt.` : "Bonus erreicht ✓"}
+            </span>
+          )}
         </div>
       </div>
       <div className="player-banner-actions">
