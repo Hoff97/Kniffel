@@ -1256,6 +1256,14 @@ button {
   font-weight: 800;
 }
 
+.total-row th,
+.total-row td {
+  background: var(--accent-soft);
+  color: var(--accent-dark);
+  font-size: 16px;
+  border-top: 2px solid var(--accent);
+}
+
 .bonus-row th,
 .bonus-row td {
   font-size: 12px;

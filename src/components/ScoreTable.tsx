@@ -602,9 +602,10 @@ export function ScoreTable({
     label: string,
     getValue: (column: PlayerColumn) => number,
     format: (v: number) => string = (v) => String(v),
+    rowClassName = "subtotal-row",
   ) {
     return (
-      <tr className="subtotal-row">
+      <tr className={rowClassName}>
         <th scope="row" className="cat-cell">
           {label}
         </th>
@@ -716,7 +717,7 @@ export function ScoreTable({
 
           {metricRow("Summe unten", lowerSum)}
           {metricRow("Kniffel-Bonus", kniffelBonusTotal, (v) => (v > 0 ? `+${v}` : "–"))}
-          {multiColumn && metricRow("Gesamt", columnTotal)}
+          {metricRow("Gesamt", columnTotal, undefined, "subtotal-row total-row")}
         </tbody>
       </table>
 
