@@ -24,6 +24,7 @@ function init() {
 export default function App() {
   const [state, dispatch] = useReducer(gameReducer, undefined, init);
   const [rolling, setRolling] = useState(false);
+  const [showScoreCard, setShowScoreCard] = useState(false);
   const [roundStarted, setRoundStarted] = useState(!state.timeAttackMode);
   const [roundEndedManually, setRoundEndedManually] = useState(false);
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
@@ -41,6 +42,7 @@ export default function App() {
     setRoundStarted(!state.timeAttackMode);
     setRoundEndedManually(false);
     setTimeLeft(null);
+    setShowScoreCard(false);
   }, [state.turnNumber, state.phase, state.timeAttackMode]);
 
   const shouldCountDown =
@@ -160,7 +162,54 @@ export default function App() {
   }
 
   if (state.phase === "finished") {
-    return <GameOver players={state.players} onNewGame={handleNewGame} />;
+    if (!showScoreCard) {
+      return (
+        <GameOver
+          players={state.players}
+          onNewGame={handleNewGame}
+          onShowScoreCard={() => setShowScoreCard(true)}
+        />
+      );
+    }
+
+    const finalAvailabilities = Array.from({ length: state.columnCount }, () => ({
+      reachable: [] as Category[],
+      jokerActive: false,
+    }));
+
+    return (
+      <div className="app-shell">
+        <header className="app-header">
+          <span className="app-title">🏆 Endstand</span>
+        </header>
+
+        <ScoreTable
+          players={state.players}
+          currentPlayerIndex={-1}
+          columnCount={state.columnCount}
+          dice={state.dice}
+          canScore={false}
+          rollsUsed={0}
+          extendedMode={state.extendedMode}
+          manualDiceMode={state.manualDiceMode}
+          blindKniffelMode={state.blindKniffelMode}
+          availabilities={finalAvailabilities}
+          onFill={handleFill}
+          onManualFill={handleManualFill}
+          onExtraKniffel={handleExtraKniffel}
+          onEditCell={handleEditCell}
+        />
+
+        <div className="final-scorecard-actions">
+          <button type="button" className="text-btn" onClick={() => setShowScoreCard(false)}>
+            ← Zurück
+          </button>
+          <button type="button" className="primary-btn" onClick={handleNewGame}>
+            Neues Spiel
+          </button>
+        </div>
+      </div>
+    );
   }
 
   const currentPlayer = state.players[state.currentPlayerIndex];

@@ -1275,6 +1275,19 @@ button {
   margin-top: 8px;
 }
 
+.score-card-btn {
+  display: block;
+  margin: 14px auto 0;
+}
+
+.final-scorecard-actions {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 18px;
+  padding: 16px;
+}
+
 @media (max-width: 480px) {
   .die {
     width: 54px;

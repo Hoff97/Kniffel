@@ -22,6 +22,8 @@ Neben den klassischen Kniffel-Regeln:
 
 Nach jedem abgeschlossenen Zug wechselt die App automatisch zum nächsten Spieler, der noch nicht alle Felder ausgefüllt hat (Spieler, die bereits fertig sind, werden dabei übersprungen, bis alle fertig sind).
 
+Ist das Spiel beendet, zeigt die App zunächst die Rangliste. Über „📋 Punktzettel ansehen" lässt sich von dort der vollständige, ausgefüllte Punktzettel aller Spieler mit allen Einzelwerten, Boni und dem Kniffel-Bonus einsehen.
+
 ## Pausieren
 
 Ein laufendes Spiel kann jederzeit über „Pausieren" unterbrochen werden. Es wird vollständig (inkl. aktuellem Wurf) in einer Liste pausierter Spiele im lokalen Speicher abgelegt und kann auf dem Startbildschirm über „Fortsetzen" wieder aufgenommen werden. Mehrere Spiele können gleichzeitig pausiert sein.

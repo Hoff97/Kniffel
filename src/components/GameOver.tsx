@@ -4,9 +4,10 @@ import type { Player } from "../game/types";
 interface GameOverProps {
   players: Player[];
   onNewGame: () => void;
+  onShowScoreCard: () => void;
 }
 
-export function GameOver({ players, onNewGame }: GameOverProps) {
+export function GameOver({ players, onNewGame, onShowScoreCard }: GameOverProps) {
   const ranked = players
     .map((p) => ({ player: p, total: grandTotal(p) }))
     .sort((a, b) => b.total - a.total);
@@ -35,6 +36,10 @@ export function GameOver({ players, onNewGame }: GameOverProps) {
             </li>
           ))}
         </ol>
+
+        <button type="button" className="text-btn score-card-btn" onClick={onShowScoreCard}>
+          📋 Punktzettel ansehen
+        </button>
 
         <button type="button" className="primary-btn start-btn" onClick={onNewGame}>
           Neues Spiel
