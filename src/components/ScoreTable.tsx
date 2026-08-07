@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import {
+  clampScore,
   computeScore,
   fixedScoreForCategory,
   maxScoreForCategory,
@@ -51,6 +52,12 @@ interface ScoreTableProps {
     category: Category,
     value: number,
     crossOut: boolean,
+  ) => void;
+  onEditCell: (
+    playerIndex: number,
+    columnIndex: number,
+    category: Category,
+    value: number | null,
   ) => void;
 }
 
@@ -129,22 +136,87 @@ function ManualEntryModal({
   );
 }
 
+interface EditTarget {
+  playerIndex: number;
+  playerName: string;
+  columnIndex: number;
+  columnLabel: string | null;
+  category: Category;
+  currentValue: number | null;
+}
+
+function EditCellModal({
+  target,
+  onSave,
+  onClear,
+  onClose,
+}: {
+  target: EditTarget;
+  onSave: (value: number) => void;
+  onClear: () => void;
+  onClose: () => void;
+}) {
+  const [value, setValue] = useState(target.currentValue === null ? "" : String(target.currentValue));
+  const max = maxScoreForCategory(target.category);
+
+  const columnSuffix = target.columnLabel ? ` – Spalte ${target.columnLabel}` : "";
+
+  return (
+    <Modal
+      title={`${CATEGORY_LABELS[target.category]} bearbeiten`}
+      subtitle={`${target.playerName}${columnSuffix}`}
+      onClose={onClose}
+    >
+      <div className="modal-number-entry">
+        <input
+          type="number"
+          inputMode="numeric"
+          className="modal-input"
+          min={0}
+          max={max}
+          placeholder="0"
+          autoFocus
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") onSave(value === "" ? 0 : Number(value));
+          }}
+        />
+        <button
+          type="button"
+          className="primary-btn"
+          onClick={() => onSave(value === "" ? 0 : Number(value))}
+        >
+          Speichern
+        </button>
+      </div>
+      <button type="button" className="modal-clear-btn" onClick={onClear}>
+        Feld leeren
+      </button>
+    </Modal>
+  );
+}
+
 function KniffelBonusToggle({
   active,
   onToggle,
+  onEditRequest,
 }: {
   active: boolean;
   onToggle: (value: boolean) => void;
+  onEditRequest: () => void;
 }) {
   return (
     <td className="score-cell kniffel-filled-cell">
       <div className="cell-inner">
-        <span className="filled-value">{KNIFFEL_FIRST_SCORE}</span>
+        <button type="button" className="filled-value edit-value-btn" onClick={onEditRequest}>
+          {KNIFFEL_FIRST_SCORE}
+        </button>
         <button
           type="button"
           className={`kniffel-bonus-btn${active ? " kniffel-bonus-active" : ""}`}
           onClick={() => onToggle(!active)}
-          title="Weiterer Kniffel: +100 Punkte & Extra-Runde"
+          title="Weiterer Kniffel: +100 Punkte"
         >
           + Kniffel?
         </button>
@@ -168,6 +240,7 @@ interface ColumnCellProps {
   onFill: (crossOut: boolean) => void;
   onManualFill: (value: number, crossOut: boolean) => void;
   onOpenModal: () => void;
+  onEditRequest: (currentValue: number | null) => void;
 }
 
 function ColumnCell({
@@ -185,21 +258,48 @@ function ColumnCell({
   onFill,
   onManualFill,
   onOpenModal,
+  onEditRequest,
 }: ColumnCellProps) {
   const filled = column.scores[category];
   const crossed = column.crossedOut[category];
 
   if (manualDiceMode && isCurrentPlayerColumn && category === "kniffel" && filled === KNIFFEL_FIRST_SCORE) {
-    return <KniffelBonusToggle active={extraKniffelFlag} onToggle={onToggleExtraKniffel} />;
+    return (
+      <KniffelBonusToggle
+        active={extraKniffelFlag}
+        onToggle={onToggleExtraKniffel}
+        onEditRequest={() => onEditRequest(filled)}
+      />
+    );
   }
 
   if (filled !== undefined) {
-    return <td className="score-cell filled">{filled}</td>;
+    return (
+      <td className="score-cell filled">
+        <button
+          type="button"
+          className="edit-value-btn"
+          onClick={() => onEditRequest(filled)}
+          aria-label={`${CATEGORY_LABELS[category]} bearbeiten`}
+          title="Bearbeiten"
+        >
+          {filled}
+        </button>
+      </td>
+    );
   }
   if (crossed) {
     return (
       <td className="score-cell crossed" aria-label="gestrichen">
-        ✕
+        <button
+          type="button"
+          className="edit-value-btn"
+          onClick={() => onEditRequest(null)}
+          aria-label={`${CATEGORY_LABELS[category]} bearbeiten`}
+          title="Bearbeiten"
+        >
+          ✕
+        </button>
       </td>
     );
   }
@@ -326,6 +426,7 @@ function CategoryRow({
   onFill,
   onManualFill,
   onOpenModal,
+  onRequestEdit,
 }: {
   category: Category;
   players: Player[];
@@ -347,6 +448,13 @@ function CategoryRow({
     crossOut: boolean,
   ) => void;
   onOpenModal: (columnIndex: number, category: Category) => void;
+  onRequestEdit: (
+    playerIndex: number,
+    playerName: string,
+    columnIndex: number,
+    category: Category,
+    currentValue: number | null,
+  ) => void;
 }) {
   const currentPlayerHasJokerHere = availabilities.some(
     (a) => a.jokerActive && a.reachable.includes(category),
@@ -380,6 +488,9 @@ function CategoryRow({
             onFill={(crossOut) => onFill(columnIndex, category, crossOut)}
             onManualFill={(value, crossOut) => onManualFill(columnIndex, category, value, crossOut)}
             onOpenModal={() => onOpenModal(columnIndex, category)}
+            onEditRequest={(currentValue) =>
+              onRequestEdit(playerIndex, player.name, columnIndex, category, currentValue)
+            }
           />
         )),
         ...(columnCount > 1
@@ -405,10 +516,12 @@ export function ScoreTable({
   onToggleExtraKniffel,
   onFill,
   onManualFill,
+  onEditCell,
 }: ScoreTableProps) {
   const [modalTarget, setModalTarget] = useState<{ columnIndex: number; category: Category } | null>(
     null,
   );
+  const [editTarget, setEditTarget] = useState<EditTarget | null>(null);
   const activeHeaderRef = useRef<HTMLTableCellElement | null>(null);
 
   useEffect(() => {
@@ -437,6 +550,21 @@ export function ScoreTable({
     onFill,
     onManualFill,
     onOpenModal: (columnIndex: number, category: Category) => setModalTarget({ columnIndex, category }),
+    onRequestEdit: (
+      playerIndex: number,
+      playerName: string,
+      columnIndex: number,
+      category: Category,
+      currentValue: number | null,
+    ) =>
+      setEditTarget({
+        playerIndex,
+        playerName,
+        columnIndex,
+        columnLabel: multiColumn ? COLUMN_LABELS[columnIndex] : null,
+        category,
+        currentValue,
+      }),
   };
 
   function metricRow(
@@ -569,6 +697,27 @@ export function ScoreTable({
             setModalTarget(null);
           }}
           onClose={() => setModalTarget(null)}
+        />
+      )}
+
+      {editTarget && (
+        <EditCellModal
+          target={editTarget}
+          onSave={(value) => {
+            const max = maxScoreForCategory(editTarget.category);
+            onEditCell(
+              editTarget.playerIndex,
+              editTarget.columnIndex,
+              editTarget.category,
+              clampScore(value, max),
+            );
+            setEditTarget(null);
+          }}
+          onClear={() => {
+            onEditCell(editTarget.playerIndex, editTarget.columnIndex, editTarget.category, null);
+            setEditTarget(null);
+          }}
+          onClose={() => setEditTarget(null)}
         />
       )}
     </div>

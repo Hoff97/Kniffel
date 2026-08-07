@@ -124,6 +124,15 @@ export default function App() {
     dispatch({ type: "RESUME_GAME", state: pausedGame.state });
   };
 
+  const handleEditCell = (
+    playerIndex: number,
+    columnIndex: number,
+    category: Category,
+    value: number | null,
+  ) => {
+    dispatch({ type: "EDIT_CELL", playerIndex, columnIndex, category, value });
+  };
+
   if (state.phase === "setup") {
     return (
       <Setup
@@ -187,7 +196,7 @@ export default function App() {
 
       {state.lastKniffelBonus && (
         <div className="kniffel-toast" role="status">
-          🎉 Zusätzlicher Kniffel! {currentPlayer.name} bekommt +100 Punkte und eine weitere Runde.
+          🎉 Zusätzlicher Kniffel! {state.lastKniffelBonusPlayerName} bekommt +100 Punkte.
         </div>
       )}
 
@@ -257,6 +266,7 @@ export default function App() {
         onToggleExtraKniffel={setExtraKniffelFlag}
         onFill={handleFill}
         onManualFill={handleManualFill}
+        onEditCell={handleEditCell}
       />
     </div>
   );

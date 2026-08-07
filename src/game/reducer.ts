@@ -1,5 +1,5 @@
 import { clampScore, computeScore, isKniffel, maxScoreForCategory, rollDie } from "./scoring";
-import { isCategoryOpen, isGameFinished } from "./stats";
+import { isCategoryOpen, isGameFinished, isPlayerDone } from "./stats";
 import { canScoreBlindCategory, getColumnAvailability, getJokerScore, getPlayerAvailability } from "./turnRules";
 import {
   DEFAULT_COLUMN_COUNT,
@@ -39,6 +39,13 @@ export type GameAction =
       extraKniffel: boolean;
     }
   | { type: "TIME_OUT" }
+  | {
+      type: "EDIT_CELL";
+      playerIndex: number;
+      columnIndex: number;
+      category: Category;
+      value: number | null;
+    }
   | { type: "PAUSE_GAME" }
   | { type: "RESUME_GAME"; state: GameState }
   | { type: "NEW_GAME" }
@@ -61,6 +68,7 @@ export const initialState: GameState = {
   held: [false, false, false, false, false],
   rollsUsed: 0,
   lastKniffelBonus: false,
+  lastKniffelBonusPlayerName: null,
 };
 
 function makeColumn(): PlayerColumn {
@@ -85,12 +93,25 @@ function updatePlayerColumn(
   return { ...player, columns };
 }
 
+// Finds the next player (after `fromIndex`, wrapping around) who still has an open cell
+// somewhere, skipping anyone who has already filled every column completely. This is what lets
+// a player who banked bonus-Kniffel turns earlier in the game keep playing after players with a
+// normal board have already finished, instead of the game getting stuck on a player with nothing
+// left to do.
+function findNextActivePlayerIndex(players: Player[], fromIndex: number, extendedMode: boolean): number {
+  const n = players.length;
+  for (let step = 1; step <= n; step++) {
+    const idx = (fromIndex + step) % n;
+    if (!isPlayerDone(players[idx], extendedMode)) return idx;
+  }
+  return (fromIndex + 1) % n;
+}
+
 function applyTurnResult(state: GameState, players: Player[], grantsBonus: boolean): GameState {
   const finished = isGameFinished(players, state.extendedMode);
-  const staySamePlayer = grantsBonus && !finished;
-  const nextIndex = staySamePlayer
+  const nextIndex = finished
     ? state.currentPlayerIndex
-    : (state.currentPlayerIndex + 1) % state.players.length;
+    : findNextActivePlayerIndex(players, state.currentPlayerIndex, state.extendedMode);
 
   return {
     ...state,
@@ -101,6 +122,9 @@ function applyTurnResult(state: GameState, players: Player[], grantsBonus: boole
     held: new Array(DICE_COUNT).fill(false),
     rollsUsed: 0,
     lastKniffelBonus: grantsBonus,
+    lastKniffelBonusPlayerName: grantsBonus
+      ? players[state.currentPlayerIndex].name
+      : state.lastKniffelBonusPlayerName,
     turnNumber: state.turnNumber + 1,
   };
 }
@@ -273,6 +297,30 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       players[state.currentPlayerIndex] = updatedPlayer;
 
       return applyTurnResult(state, players, false);
+    }
+
+    case "EDIT_CELL": {
+      if (state.phase !== "playing") return state;
+
+      const player = state.players[action.playerIndex];
+      const column = player?.columns[action.columnIndex];
+      if (!column) return state;
+
+      const updatedPlayer = updatePlayerColumn(player, action.columnIndex, (col) => {
+        const scores = { ...col.scores };
+        const crossedOut = { ...col.crossedOut };
+        delete scores[action.category];
+        delete crossedOut[action.category];
+        if (action.value !== null) {
+          scores[action.category] = clampScore(action.value, maxScoreForCategory(action.category));
+        }
+        return { ...col, scores, crossedOut };
+      });
+
+      const players = state.players.slice();
+      players[action.playerIndex] = updatedPlayer;
+
+      return { ...state, players };
     }
 
     case "PAUSE_GAME":

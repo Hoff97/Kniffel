@@ -110,6 +110,7 @@ export interface GameState {
   held: boolean[];
   rollsUsed: number;
   lastKniffelBonus: boolean;
+  lastKniffelBonusPlayerName: string | null;
 }
 
 export const CATEGORY_LABELS: Record<Category, string> = {

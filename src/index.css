@@ -1013,7 +1013,7 @@ button {
   width: auto;
 }
 
-.modal-cross-btn {
+.modal-clear-btn {
   width: 100%;
   padding: 12px;
   border: none;
@@ -1024,7 +1024,7 @@ button {
   cursor: pointer;
 }
 
-.modal-cross-btn:hover {
+.modal-clear-btn:hover {
   background: rgba(217, 80, 108, 0.18);
 }
 
@@ -1131,6 +1131,11 @@ button {
   font-weight: 800;
 }
 
+.score-cell.filled,
+.score-cell.crossed {
+  padding: 0;
+}
+
 .score-cell.filled {
   font-weight: 800;
   color: var(--success);
@@ -1143,6 +1148,36 @@ button {
   font-size: 15px;
   background: rgba(217, 80, 108, 0.14);
   box-shadow: inset 0 0 0 1.5px rgba(217, 80, 108, 0.35);
+}
+
+.edit-value-btn {
+  width: 100%;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: inherit;
+  padding: 9px 10px;
+  cursor: pointer;
+  border-radius: 8px;
+}
+
+.edit-value-btn:hover {
+  background: rgba(0, 0, 0, 0.08);
+}
+
+.kniffel-filled-cell .edit-value-btn {
+  width: auto;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--success-soft);
+  color: var(--success);
+  font-weight: 800;
+}
+
+.kniffel-filled-cell .edit-value-btn:hover {
+  background: var(--success);
+  color: white;
 }
 
 .score-cell.empty {
