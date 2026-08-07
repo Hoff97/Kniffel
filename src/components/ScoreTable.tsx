@@ -45,6 +45,7 @@ interface ScoreTableProps {
   manualDiceMode: boolean;
   blindKniffelMode: boolean;
   availabilities: TurnAvailability[];
+  readOnly?: boolean;
   onFill: (columnIndex: number, category: Category, crossOut: boolean) => void;
   onManualFill: (
     columnIndex: number,
@@ -233,6 +234,7 @@ interface ColumnCellProps {
   manualDiceMode: boolean;
   blindKniffelMode: boolean;
   availability: TurnAvailability | undefined;
+  readOnly: boolean;
   onFill: (crossOut: boolean) => void;
   onManualFill: (value: number, crossOut: boolean) => void;
   onOpenModal: () => void;
@@ -250,6 +252,7 @@ function ColumnCell({
   manualDiceMode,
   blindKniffelMode,
   availability,
+  readOnly,
   onFill,
   onManualFill,
   onOpenModal,
@@ -258,6 +261,20 @@ function ColumnCell({
 }: ColumnCellProps) {
   const filled = column.scores[category];
   const crossed = column.crossedOut[category];
+
+  if (readOnly) {
+    if (filled !== undefined) {
+      return <td className="score-cell filled">{filled}</td>;
+    }
+    if (crossed) {
+      return (
+        <td className="score-cell crossed" aria-label="gestrichen">
+          ✕
+        </td>
+      );
+    }
+    return <td className="score-cell empty">–</td>;
+  }
 
   // Under the Joker rule, a repeat Kniffel forces placement into a matching/free box instead
   // (handled by the normal actionable-cell path below via `availability.jokerActive`).
@@ -421,6 +438,7 @@ function CategoryRow({
   manualDiceMode,
   blindKniffelMode,
   availabilities,
+  readOnly,
   onFill,
   onManualFill,
   onOpenModal,
@@ -437,6 +455,7 @@ function CategoryRow({
   manualDiceMode: boolean;
   blindKniffelMode: boolean;
   availabilities: TurnAvailability[];
+  readOnly: boolean;
   onFill: (columnIndex: number, category: Category, crossOut: boolean) => void;
   onManualFill: (
     columnIndex: number,
@@ -454,9 +473,8 @@ function CategoryRow({
     currentValue: number | null,
   ) => void;
 }) {
-  const currentPlayerHasJokerHere = availabilities.some(
-    (a) => a.jokerActive && a.reachable.includes(category),
-  );
+  const currentPlayerHasJokerHere =
+    !readOnly && availabilities.some((a) => a.jokerActive && a.reachable.includes(category));
 
   return (
     <tr>
@@ -481,6 +499,7 @@ function CategoryRow({
             manualDiceMode={manualDiceMode}
             blindKniffelMode={blindKniffelMode}
             availability={playerIndex === currentPlayerIndex ? availabilities[columnIndex] : undefined}
+            readOnly={readOnly}
             onFill={(crossOut) => onFill(columnIndex, category, crossOut)}
             onManualFill={(value, crossOut) => onManualFill(columnIndex, category, value, crossOut)}
             onOpenModal={() => onOpenModal(columnIndex, category)}
@@ -509,6 +528,7 @@ export function ScoreTable({
   manualDiceMode,
   blindKniffelMode,
   availabilities,
+  readOnly = false,
   onFill,
   onManualFill,
   onExtraKniffel,
@@ -518,14 +538,29 @@ export function ScoreTable({
     null,
   );
   const [editTarget, setEditTarget] = useState<EditTarget | null>(null);
+  const wrapRef = useRef<HTMLDivElement | null>(null);
   const activeHeaderRef = useRef<HTMLTableCellElement | null>(null);
 
   useEffect(() => {
-    activeHeaderRef.current?.scrollIntoView({
-      behavior: "smooth",
-      block: "nearest",
-      inline: "center",
-    });
+    const wrap = wrapRef.current;
+    const header = activeHeaderRef.current;
+    if (!wrap || !header) return;
+
+    // Center the active player's header in the space to the *right* of the sticky category
+    // column. Using scrollIntoView directly here overshoots: it centers the header against the
+    // wrapper's full width, ignoring that the sticky column visually eats into that space.
+    const stickyCol = wrap.querySelector<HTMLElement>(".cat-cell");
+    const stickyWidth = stickyCol?.getBoundingClientRect().width ?? 0;
+
+    const wrapRect = wrap.getBoundingClientRect();
+    const headerRect = header.getBoundingClientRect();
+    const headerLeftInContent = headerRect.left - wrapRect.left + wrap.scrollLeft;
+
+    const availableWidth = wrapRect.width - stickyWidth;
+    const target =
+      headerLeftInContent - stickyWidth - Math.max(0, (availableWidth - headerRect.width) / 2);
+
+    wrap.scrollTo({ left: Math.max(0, target), behavior: "smooth" });
   }, [currentPlayerIndex]);
 
   const multiColumn = columnCount > 1;
@@ -541,6 +576,7 @@ export function ScoreTable({
     manualDiceMode,
     blindKniffelMode,
     availabilities,
+    readOnly,
     onFill,
     onManualFill,
     onExtraKniffel,
@@ -587,7 +623,7 @@ export function ScoreTable({
   }
 
   return (
-    <div className="score-table-wrap">
+    <div className="score-table-wrap" ref={wrapRef}>
       <table className="score-table">
         <thead>
           {multiColumn && (

@@ -1275,9 +1275,29 @@ button {
   margin-top: 8px;
 }
 
+.secondary-btn {
+  width: 100%;
+  padding: 15px;
+  border: 2px solid var(--accent);
+  border-radius: var(--radius-md);
+  background: var(--accent-soft);
+  color: var(--accent-dark);
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  transition: transform 0.12s ease, background 0.12s ease;
+}
+
+.secondary-btn:hover {
+  background: var(--accent);
+  color: white;
+  transform: translateY(-1px);
+}
+
 .score-card-btn {
-  display: block;
-  margin: 14px auto 0;
+  margin-top: 12px;
+  margin-bottom: 12px;
 }
 
 .final-scorecard-actions {
@@ -1286,6 +1306,12 @@ button {
   align-items: center;
   gap: 18px;
   padding: 16px;
+}
+
+.final-scorecard-actions .secondary-btn,
+.final-scorecard-actions .primary-btn {
+  width: auto;
+  flex: 1;
 }
 
 @media (max-width: 480px) {

@@ -194,6 +194,7 @@ export default function App() {
           manualDiceMode={state.manualDiceMode}
           blindKniffelMode={state.blindKniffelMode}
           availabilities={finalAvailabilities}
+          readOnly
           onFill={handleFill}
           onManualFill={handleManualFill}
           onExtraKniffel={handleExtraKniffel}

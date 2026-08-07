@@ -37,7 +37,7 @@ export function GameOver({ players, onNewGame, onShowScoreCard }: GameOverProps)
           ))}
         </ol>
 
-        <button type="button" className="text-btn score-card-btn" onClick={onShowScoreCard}>
+        <button type="button" className="secondary-btn score-card-btn" onClick={onShowScoreCard}>
           📋 Punktzettel ansehen
         </button>
 
