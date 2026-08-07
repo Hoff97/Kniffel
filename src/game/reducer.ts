@@ -36,8 +36,8 @@ export type GameAction =
       category: Category;
       value: number;
       crossOut: boolean;
-      extraKniffel: boolean;
     }
+  | { type: "EXTRA_KNIFFEL"; columnIndex: number }
   | { type: "TIME_OUT" }
   | {
       type: "EDIT_CELL";
@@ -195,9 +195,9 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         return state;
       }
 
-      const rolledKniffel = isKniffel(state.dice);
-      const hadKniffelBefore = column.scores.kniffel === KNIFFEL_FIRST_SCORE;
-      const grantsBonus = rolledKniffel && hadKniffelBefore;
+      // Under the Joker rule, a repeat Kniffel forces placement into a matching/free box in the
+      // same action, so this is the one place FILL_CATEGORY still grants the +100 bonus itself.
+      const grantsBonus = availability.jokerActive;
 
       const updatedPlayer = updatePlayerColumn(player, action.columnIndex, (col) => {
         const scores = { ...col.scores };
@@ -210,6 +210,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
             : computeScore(action.category, state.dice);
         }
         return {
+          ...col,
           scores,
           crossedOut,
           kniffelBonusCount: col.kniffelBonusCount + (grantsBonus ? 1 : 0),
@@ -240,9 +241,6 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       );
       if (!availability.reachable.includes(action.category)) return state;
 
-      const hadKniffelBefore = column.scores.kniffel === KNIFFEL_FIRST_SCORE;
-      const grantsBonus = action.extraKniffel && hadKniffelBefore;
-
       const updatedPlayer = updatePlayerColumn(player, action.columnIndex, (col) => {
         const scores = { ...col.scores };
         const crossedOut = { ...col.crossedOut };
@@ -252,17 +250,32 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
           const max = maxScoreForCategory(action.category);
           scores[action.category] = clampScore(action.value, max);
         }
-        return {
-          scores,
-          crossedOut,
-          kniffelBonusCount: col.kniffelBonusCount + (grantsBonus ? 1 : 0),
-        };
+        return { ...col, scores, crossedOut };
       });
 
       const players = state.players.slice();
       players[state.currentPlayerIndex] = updatedPlayer;
 
-      return applyTurnResult(state, players, grantsBonus);
+      return applyTurnResult(state, players, false);
+    }
+
+    case "EXTRA_KNIFFEL": {
+      if (state.phase !== "playing") return state;
+
+      const player = state.players[state.currentPlayerIndex];
+      const column = player.columns[action.columnIndex];
+      if (!column || column.scores.kniffel !== KNIFFEL_FIRST_SCORE) return state;
+      if (!state.manualDiceMode && !(state.rollsUsed > 0 && isKniffel(state.dice))) return state;
+
+      const updatedPlayer = updatePlayerColumn(player, action.columnIndex, (col) => ({
+        ...col,
+        kniffelBonusCount: col.kniffelBonusCount + 1,
+      }));
+
+      const players = state.players.slice();
+      players[state.currentPlayerIndex] = updatedPlayer;
+
+      return applyTurnResult(state, players, true);
     }
 
     case "TIME_OUT": {

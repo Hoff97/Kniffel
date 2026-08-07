@@ -854,25 +854,14 @@ button {
   padding: 4px 10px;
   font-size: 11px;
   font-weight: 700;
-  background: var(--card-bg-soft);
-  color: var(--text-muted);
+  background: var(--gold);
+  color: #4a3300;
   cursor: pointer;
   white-space: nowrap;
 }
 
 .kniffel-bonus-btn:hover {
-  background: var(--accent-soft);
-  color: var(--accent-dark);
-}
-
-.kniffel-bonus-active {
-  background: var(--gold);
-  color: #4a3300;
-}
-
-.kniffel-bonus-active:hover {
-  background: var(--gold);
-  color: #4a3300;
+  filter: brightness(1.08);
 }
 
 /* Modal */

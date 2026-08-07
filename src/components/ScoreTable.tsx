@@ -3,6 +3,7 @@ import {
   clampScore,
   computeScore,
   fixedScoreForCategory,
+  isKniffel,
   maxScoreForCategory,
   UPPER_FACE_VALUES,
 } from "../game/scoring";
@@ -44,8 +45,6 @@ interface ScoreTableProps {
   manualDiceMode: boolean;
   blindKniffelMode: boolean;
   availabilities: TurnAvailability[];
-  extraKniffelFlag: boolean;
-  onToggleExtraKniffel: (value: boolean) => void;
   onFill: (columnIndex: number, category: Category, crossOut: boolean) => void;
   onManualFill: (
     columnIndex: number,
@@ -53,6 +52,7 @@ interface ScoreTableProps {
     value: number,
     crossOut: boolean,
   ) => void;
+  onExtraKniffel: (columnIndex: number) => void;
   onEditCell: (
     playerIndex: number,
     columnIndex: number,
@@ -197,13 +197,11 @@ function EditCellModal({
   );
 }
 
-function KniffelBonusToggle({
-  active,
-  onToggle,
+function KniffelBonusCell({
+  onClaim,
   onEditRequest,
 }: {
-  active: boolean;
-  onToggle: (value: boolean) => void;
+  onClaim: () => void;
   onEditRequest: () => void;
 }) {
   return (
@@ -214,11 +212,11 @@ function KniffelBonusToggle({
         </button>
         <button
           type="button"
-          className={`kniffel-bonus-btn${active ? " kniffel-bonus-active" : ""}`}
-          onClick={() => onToggle(!active)}
-          title="Weiterer Kniffel: +100 Punkte"
+          className="kniffel-bonus-btn"
+          onClick={onClaim}
+          title="Weiterer Kniffel: +100 Punkte, Zug endet sofort"
         >
-          + Kniffel?
+          + Kniffel! (+100)
         </button>
       </div>
     </td>
@@ -235,11 +233,10 @@ interface ColumnCellProps {
   manualDiceMode: boolean;
   blindKniffelMode: boolean;
   availability: TurnAvailability | undefined;
-  extraKniffelFlag: boolean;
-  onToggleExtraKniffel: (value: boolean) => void;
   onFill: (crossOut: boolean) => void;
   onManualFill: (value: number, crossOut: boolean) => void;
   onOpenModal: () => void;
+  onExtraKniffel: () => void;
   onEditRequest: (currentValue: number | null) => void;
 }
 
@@ -253,24 +250,27 @@ function ColumnCell({
   manualDiceMode,
   blindKniffelMode,
   availability,
-  extraKniffelFlag,
-  onToggleExtraKniffel,
   onFill,
   onManualFill,
   onOpenModal,
+  onExtraKniffel,
   onEditRequest,
 }: ColumnCellProps) {
   const filled = column.scores[category];
   const crossed = column.crossedOut[category];
 
-  if (manualDiceMode && isCurrentPlayerColumn && category === "kniffel" && filled === KNIFFEL_FIRST_SCORE) {
-    return (
-      <KniffelBonusToggle
-        active={extraKniffelFlag}
-        onToggle={onToggleExtraKniffel}
-        onEditRequest={() => onEditRequest(filled)}
-      />
-    );
+  // Under the Joker rule, a repeat Kniffel forces placement into a matching/free box instead
+  // (handled by the normal actionable-cell path below via `availability.jokerActive`).
+  const canClaimExtraKniffel =
+    isCurrentPlayerColumn &&
+    canScore &&
+    category === "kniffel" &&
+    filled === KNIFFEL_FIRST_SCORE &&
+    (manualDiceMode || isKniffel(dice)) &&
+    !availability?.jokerActive;
+
+  if (canClaimExtraKniffel) {
+    return <KniffelBonusCell onClaim={onExtraKniffel} onEditRequest={() => onEditRequest(filled)} />;
   }
 
   if (filled !== undefined) {
@@ -421,11 +421,10 @@ function CategoryRow({
   manualDiceMode,
   blindKniffelMode,
   availabilities,
-  extraKniffelFlag,
-  onToggleExtraKniffel,
   onFill,
   onManualFill,
   onOpenModal,
+  onExtraKniffel,
   onRequestEdit,
 }: {
   category: Category;
@@ -438,8 +437,6 @@ function CategoryRow({
   manualDiceMode: boolean;
   blindKniffelMode: boolean;
   availabilities: TurnAvailability[];
-  extraKniffelFlag: boolean;
-  onToggleExtraKniffel: (value: boolean) => void;
   onFill: (columnIndex: number, category: Category, crossOut: boolean) => void;
   onManualFill: (
     columnIndex: number,
@@ -448,6 +445,7 @@ function CategoryRow({
     crossOut: boolean,
   ) => void;
   onOpenModal: (columnIndex: number, category: Category) => void;
+  onExtraKniffel: (columnIndex: number) => void;
   onRequestEdit: (
     playerIndex: number,
     playerName: string,
@@ -483,11 +481,10 @@ function CategoryRow({
             manualDiceMode={manualDiceMode}
             blindKniffelMode={blindKniffelMode}
             availability={playerIndex === currentPlayerIndex ? availabilities[columnIndex] : undefined}
-            extraKniffelFlag={extraKniffelFlag}
-            onToggleExtraKniffel={onToggleExtraKniffel}
             onFill={(crossOut) => onFill(columnIndex, category, crossOut)}
             onManualFill={(value, crossOut) => onManualFill(columnIndex, category, value, crossOut)}
             onOpenModal={() => onOpenModal(columnIndex, category)}
+            onExtraKniffel={() => onExtraKniffel(columnIndex)}
             onEditRequest={(currentValue) =>
               onRequestEdit(playerIndex, player.name, columnIndex, category, currentValue)
             }
@@ -512,10 +509,9 @@ export function ScoreTable({
   manualDiceMode,
   blindKniffelMode,
   availabilities,
-  extraKniffelFlag,
-  onToggleExtraKniffel,
   onFill,
   onManualFill,
+  onExtraKniffel,
   onEditCell,
 }: ScoreTableProps) {
   const [modalTarget, setModalTarget] = useState<{ columnIndex: number; category: Category } | null>(
@@ -545,10 +541,9 @@ export function ScoreTable({
     manualDiceMode,
     blindKniffelMode,
     availabilities,
-    extraKniffelFlag,
-    onToggleExtraKniffel,
     onFill,
     onManualFill,
+    onExtraKniffel,
     onOpenModal: (columnIndex: number, category: Category) => setModalTarget({ columnIndex, category }),
     onRequestEdit: (
       playerIndex: number,

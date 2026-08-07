@@ -24,7 +24,6 @@ function init() {
 export default function App() {
   const [state, dispatch] = useReducer(gameReducer, undefined, init);
   const [rolling, setRolling] = useState(false);
-  const [extraKniffelFlag, setExtraKniffelFlag] = useState(false);
   const [roundStarted, setRoundStarted] = useState(!state.timeAttackMode);
   const [roundEndedManually, setRoundEndedManually] = useState(false);
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
@@ -39,7 +38,6 @@ export default function App() {
   }, [state]);
 
   useEffect(() => {
-    setExtraKniffelFlag(false);
     setRoundStarted(!state.timeAttackMode);
     setRoundEndedManually(false);
     setTimeLeft(null);
@@ -99,15 +97,11 @@ export default function App() {
     value: number,
     crossOut: boolean,
   ) => {
-    dispatch({
-      type: "MANUAL_SUBMIT",
-      columnIndex,
-      category,
-      value,
-      crossOut,
-      extraKniffel: extraKniffelFlag,
-    });
-    setExtraKniffelFlag(false);
+    dispatch({ type: "MANUAL_SUBMIT", columnIndex, category, value, crossOut });
+  };
+
+  const handleExtraKniffel = (columnIndex: number) => {
+    dispatch({ type: "EXTRA_KNIFFEL", columnIndex });
   };
 
   const handleNewGame = () => {
@@ -262,10 +256,9 @@ export default function App() {
         manualDiceMode={state.manualDiceMode}
         blindKniffelMode={state.blindKniffelMode}
         availabilities={availabilities}
-        extraKniffelFlag={extraKniffelFlag}
-        onToggleExtraKniffel={setExtraKniffelFlag}
         onFill={handleFill}
         onManualFill={handleManualFill}
+        onExtraKniffel={handleExtraKniffel}
         onEditCell={handleEditCell}
       />
     </div>
